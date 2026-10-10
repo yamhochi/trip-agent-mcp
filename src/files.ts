@@ -1,6 +1,7 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { copyFile, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 /** The export folder: $TRIP_AGENT_DIR, or Documents/trip-agent in the home folder. */
 export function exportFolder(): string {
@@ -25,11 +26,51 @@ export function tripFilePath(name: string, startDate: string): string {
   return join(exportFolder(), tripFilename(name, startDate));
 }
 
-export async function writeTripFile(name: string, startDate: string, content: string): Promise<string> {
-  await mkdir(exportFolder(), { recursive: true });
+export interface WrittenTripFile {
+  path: string;
+  /** Other files in the folder for the same trip name but a different start date. */
+  similar: string[];
+}
+
+function tripSlug(filename: string, startDate: string): string {
+  return filename.slice(0, -`-${startDate}.ics`.length);
+}
+
+async function findSimilar(folder: string, filename: string, startDate: string): Promise<string[]> {
+  const slug = tripSlug(filename, startDate);
+  const pattern = new RegExp(`^${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d{4}-\\d{2}-\\d{2}\\.ics$`);
+  try {
+    const names = await readdir(folder);
+    return names.filter((n) => n !== filename && pattern.test(n)).sort();
+  } catch {
+    return []; // advisory only: never fail an export that already succeeded
+  }
+}
+
+/**
+ * Writes to a temporary file in the same folder and renames it over the real one, so an
+ * interrupted write leaves the old file or the new one. The previous version is kept as
+ * one backup (`<file>.bak`). With two writers at once, the later rename wins.
+ */
+export async function writeTripFile(name: string, startDate: string, content: string): Promise<WrittenTripFile> {
+  const folder = exportFolder();
+  await mkdir(folder, { recursive: true });
   const path = tripFilePath(name, startDate);
-  const temp = `${path}.tmp-${process.pid}`;
-  await writeFile(temp, content, "utf8");
-  await rename(temp, path);
-  return path;
+  const filename = basename(path);
+  const temp = `${path}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`;
+  try {
+    await writeFile(temp, content, "utf8");
+    try {
+      await copyFile(path, `${temp}.bak`);
+      await rename(`${temp}.bak`, `${path}.bak`);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    }
+    await rename(temp, path);
+  } catch (err) {
+    await rm(temp, { force: true });
+    await rm(`${temp}.bak`, { force: true });
+    throw err;
+  }
+  return { path, similar: await findSimilar(folder, filename, startDate) };
 }
