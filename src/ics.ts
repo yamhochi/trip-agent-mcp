@@ -96,7 +96,16 @@ function uid(...facts: string[]): string {
 
 interface Booking {
   vendor: string;
-  reference: string;
+  reference?: string;
+}
+
+/**
+ * A leg's identity is a fingerprint of facts that do not change when a booking is amended: the
+ * booking reference plus the flight number or property, never a time. A leg with no reference
+ * falls back to its kind, name and original date, so moving it to another day makes a new event.
+ */
+function legId(booking: Booking, kind: string, name: string, date: string): string {
+  return booking.reference ? uid(booking.reference, name) : uid("no-reference", kind, name, date);
 }
 
 function event(booking: Booking, id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
@@ -108,7 +117,7 @@ function event(booking: Booking, id: string, stamp: string, dtstart: string, dte
     dtend,
     `SUMMARY:${escapeText(summary)}`,
     `LOCATION:${escapeText(location)}`,
-    `DESCRIPTION:${escapeText(`${booking.vendor} booking, code ending ${booking.reference.slice(-2)}`)}`,
+    `DESCRIPTION:${escapeText(booking.reference ? `${booking.vendor} booking, code ending ${booking.reference.slice(-2)}` : `${booking.vendor} (no booking reference)`)}`,
     "STATUS:CONFIRMED",
     "END:VEVENT",
   ];
@@ -132,7 +141,7 @@ function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
   const { departure, arrival } = leg;
   return event(
     booking,
-    uid(booking.reference, leg.flightNumber),
+    legId(booking, "flight", leg.flightNumber, leg.departure.localTime.slice(0, 10)),
     stamp,
     zoned("DTSTART", departure.timeZone, departure.localTime),
     zoned("DTEND", arrival.timeZone, arrival.localTime),
@@ -144,7 +153,7 @@ function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
 function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
   return event(
     booking,
-    uid(booking.reference, leg.property),
+    legId(booking, "stay", leg.property, leg.checkIn),
     stamp,
     allDay("DTSTART", leg.checkIn),
     allDay("DTEND", leg.checkOut),
@@ -156,7 +165,7 @@ function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
 function activityEvent(booking: Booking, leg: Activity, stamp: string): string[] {
   return event(
     booking,
-    uid(booking.reference, leg.name),
+    legId(booking, "activity", leg.name, leg.start.slice(0, 10)),
     stamp,
     zoned("DTSTART", leg.timeZone, leg.start),
     zoned("DTEND", leg.timeZone, leg.end),
