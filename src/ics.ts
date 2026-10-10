@@ -90,7 +90,8 @@ function fold(line: string): string {
 const compact = (localTime: string) => localTime.replace(/[-:]/g, "") + "00";
 
 function uid(...facts: string[]): string {
-  const digest = createHash("sha256").update(facts.join("|")).digest("hex").slice(0, 32);
+  // JSON keeps the facts apart, so a "|" or quote inside a name cannot make two sets of facts hash alike.
+  const digest = createHash("sha256").update(JSON.stringify(facts)).digest("hex").slice(0, 32);
   return `${digest}@trip-agent-mcp`;
 }
 
@@ -104,8 +105,14 @@ interface Booking {
  * booking reference plus the flight number or property, never a time. A leg with no reference
  * falls back to its kind, name and original date, so moving it to another day makes a new event.
  */
-function legId(booking: Booking, kind: string, name: string, date: string): string {
-  return booking.reference ? uid(booking.reference, name) : uid("no-reference", kind, name, date);
+function legId(booking: Booking, kind: Leg["kind"], name: string, date: string): string {
+  return booking.reference ? uid("booked", booking.reference, kind, name) : uid("unbooked", kind, name, date);
+}
+
+function describeBooking(booking: Booking): string {
+  return booking.reference
+    ? `${booking.vendor} booking, code ending ${booking.reference.slice(-2)}`
+    : `${booking.vendor} (no booking reference)`;
 }
 
 function event(booking: Booking, id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
@@ -117,7 +124,7 @@ function event(booking: Booking, id: string, stamp: string, dtstart: string, dte
     dtend,
     `SUMMARY:${escapeText(summary)}`,
     `LOCATION:${escapeText(location)}`,
-    `DESCRIPTION:${escapeText(booking.reference ? `${booking.vendor} booking, code ending ${booking.reference.slice(-2)}` : `${booking.vendor} (no booking reference)`)}`,
+    `DESCRIPTION:${escapeText(describeBooking(booking))}`,
     "STATUS:CONFIRMED",
     "END:VEVENT",
   ];

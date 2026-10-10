@@ -9,8 +9,6 @@ afterEach(async () => {
   await Promise.all(open.splice(0).map((s) => s.close()));
 });
 
-type Trip = typeof oneFlightTrip;
-
 /** Export trips the way Claude would and read back what landed in the folder. */
 async function exporter() {
   const dir = join(makeHome(), "out");
@@ -54,7 +52,7 @@ const plannedDinner = (overrides: Record<string, string> = {}) => ({
 const tripWith = (...bookings: unknown[]) => ({ ...oneFlightTrip, bookings });
 
 describe("event identity", () => {
-  it("gives a leg with no booking reference the same id every time, from its type, name and date", async () => {
+  it("gives a leg with no booking reference the same id every time, from its kind, name and date", async () => {
     const e = await exporter();
     const first = idOf(await e.export(tripWith(plannedDinner())), "Activity: Dinner at Sample Sushi");
     const again = idOf(await e.export(tripWith(plannedDinner())), "Activity: Dinner at Sample Sushi");
@@ -159,5 +157,63 @@ describe("event identity", () => {
     // Every line is a property, and every physical line is short enough.
     for (const line of all) expect(line).toMatch(/^[A-Z][A-Z-]*[:;]/);
     for (const physical of ics.split("\r\n")) expect(Buffer.byteLength(physical)).toBeLessThanOrEqual(75);
+  });
+
+  it("gives a reference-less stay the same id every time, and a new one for another check-in day", async () => {
+    const e = await exporter();
+    const stay = hotelBooking.legs[0];
+    const unbooked = (changes: Record<string, unknown> = {}) => ({
+      vendor: "Friend's flat",
+      legs: [{ ...stay, status: "confirmed", ...changes }],
+    });
+    const title = "Stay: Sample Hotel Tokyo";
+    const first = idOf(await e.export(tripWith(unbooked())), title);
+    const again = idOf(await e.export(tripWith(unbooked())), title);
+    const later = idOf(await e.export(tripWith(unbooked({ checkIn: "2026-12-03", checkOut: "2026-12-05" }))), title);
+    expect(again).toBe(first);
+    expect(later).not.toBe(first);
+  });
+
+  it("does not give two different legs one id because a name contains the separator used for hashing", async () => {
+    const e = await exporter();
+    const activity = (reference: string, name: string) => ({
+      vendor: "Sample Tours",
+      reference,
+      legs: [{ ...dinnerBooking.legs[0], name }],
+    });
+    const one = idOf(await e.export(tripWith(activity("A", "B|C"))), "Activity: B|C");
+    const other = idOf(await e.export(tripWith(activity("A|B", "C"))), "Activity: C");
+    expect(other).not.toBe(one);
+  });
+
+  it("gives a flight and a stay in one booking different ids even when they share a name", async () => {
+    const e = await exporter();
+    const trip = tripWith({
+      vendor: "Sample Travel",
+      reference: "ZZZ111",
+      legs: [{ ...oneFlightTrip.bookings[0].legs[0], flightNumber: "SAME" }, { ...hotelBooking.legs[0], property: "SAME" }],
+    });
+    const ics = await e.export(trip);
+    expect(idOf(ics, "Flight SAME")).not.toBe(idOf(ics, "Stay: SAME"));
+  });
+
+  it("escapes semicolons, commas, backslashes and line breaks in flight and activity text", async () => {
+    const e = await exporter();
+    const nasty = "a;b,c\\d\ne";
+    const flight = oneFlightTrip.bookings[0].legs[0];
+    const ics = await e.export(
+      tripWith({
+        vendor: "Sample Air",
+        reference: "ABC123",
+        legs: [
+          { ...flight, departure: { ...flight.departure, location: nasty } },
+          { ...dinnerBooking.legs[0], name: nasty },
+        ],
+      }),
+    );
+    const escaped = "a\\;b\\,c\\\\d\\ne";
+    const all = lines(ics);
+    expect(all).toContain(`LOCATION:${escaped}`);
+    expect(all).toContain(`SUMMARY:Activity: ${escaped}`);
   });
 });

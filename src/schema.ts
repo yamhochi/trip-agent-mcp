@@ -84,7 +84,7 @@ const booking = z.object({
     .min(1)
     .optional()
     .describe(
-      "Confirmation reference. Leave it out for something with no booking, such as a dinner the traveller planned. Only its last two characters are ever written to the file.",
+      "Confirmation reference. Leave it out for something with no confirmation reference, such as a dinner the traveller planned. Only its last two characters are ever written to the file.",
     ),
   legs: z.array(leg).min(1),
 });
