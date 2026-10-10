@@ -1,4 +1,10 @@
+---
+status: partly superseded by ADR-0002
+---
+
 # The public MCP has no database and lives in its own repository
+
+_Still stands: no database, and a separate public repository. Superseded by [ADR 0002](0002-the-public-mcp-keeps-no-trips.md): the local trip file, this repository owning the shared code, and the private application depending on the published package._
 
 The trip tools are a private project's MCP server today, backed by Supabase with an emailed-code sign-in. For anyone else that is too much to set up. The public server keeps a trip in a local file on the traveller's computer and has no Supabase code at all; the only way out is a calendar export. Phones cannot run a local MCP server, so it is a desktop tool.
 
