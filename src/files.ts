@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { copyFile, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 /** The export folder: $TRIP_AGENT_DIR, or Documents/trip-agent in the home folder. */
 export function exportFolder(): string {
@@ -19,6 +19,11 @@ export function tripFilename(name: string, startDate: string): string {
     .slice(0, 60)
     .replace(/-+$/, "");
   return `${slug || "trip"}-${startDate}.ics`;
+}
+
+/** Where a trip's calendar file lives, whether or not it has been written yet. */
+export function tripFilePath(name: string, startDate: string): string {
+  return join(exportFolder(), tripFilename(name, startDate));
 }
 
 export interface WrittenTripFile {
@@ -50,8 +55,8 @@ async function findSimilar(folder: string, filename: string, startDate: string):
 export async function writeTripFile(name: string, startDate: string, content: string): Promise<WrittenTripFile> {
   const folder = exportFolder();
   await mkdir(folder, { recursive: true });
-  const filename = tripFilename(name, startDate);
-  const path = join(folder, filename);
+  const path = tripFilePath(name, startDate);
+  const filename = basename(path);
   const temp = `${path}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`;
   try {
     await writeFile(temp, content, "utf8");

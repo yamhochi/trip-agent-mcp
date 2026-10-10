@@ -40,7 +40,7 @@ const flight = z.object({
   arrival: endpoint,
 });
 
-const date = z
+export const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'must be a date like "2026-12-01"' })
   .refine(isRealDate, { message: "is not a real date" });

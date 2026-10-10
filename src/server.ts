@@ -1,7 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCalendar } from "./ics.js";
-import { writeTripFile } from "./files.js";
-import { tripSchema } from "./schema.js";
+import { tripFilePath, writeTripFile } from "./files.js";
+import { openFile } from "./open.js";
+import { access } from "node:fs/promises";
+import { z } from "zod";
+import { date, tripSchema } from "./schema.js";
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "trip-agent-mcp", version: "0.0.0" });
@@ -27,6 +30,38 @@ export function createServer(): McpServer {
           content: [{ type: "text", text: `Could not write the calendar file (${message}). Ask the traveller to choose another folder (TRIP_AGENT_DIR).` }],
         };
       }
+    },
+  );
+  server.registerTool(
+    "open_trip_file",
+    {
+      description:
+        "Open a trip's exported calendar file in the traveller's default calendar app. Takes the trip name and start date, never a path. Only a file this server exported can be opened.",
+      inputSchema: { name: z.string().min(1), startDate: date },
+    },
+    async ({ name, startDate }) => {
+      const path = tripFilePath(name, startDate);
+      try {
+        await access(path);
+      } catch {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `No exported file for "${name}" starting ${startDate}. Export the trip first.` }],
+        };
+      }
+      try {
+        await openFile(path);
+      } catch {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Could not open the file here (there is no calendar app, display or opener that responded on this machine). It is at ${path}. Ask the traveller to open or import it themselves.`,
+            },
+          ],
+        };
+      }
+      return { content: [{ type: "text", text: `Opened ${path}` }] };
     },
   );
   return server;

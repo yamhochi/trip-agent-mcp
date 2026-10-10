@@ -14,11 +14,11 @@ afterEach(async () => {
 });
 
 describe("trip-agent server", () => {
-  it("starts over stdio and lists the exporter tool", async () => {
+  it("starts over stdio and lists its tools", async () => {
     const server = await startServer();
     open.push(server);
     const { tools } = await server.client.listTools();
-    expect(tools.map((t) => t.name)).toEqual(["export_trip"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["export_trip", "open_trip_file"]);
   });
 
   it("exports a one-flight trip that matches the known-good calendar file", async () => {
