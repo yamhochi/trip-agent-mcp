@@ -40,18 +40,52 @@ const flight = z.object({
   arrival: endpoint,
 });
 
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'must be a date like "2026-12-01"' })
+  .refine(isRealDate, { message: "is not a real date" });
+
+const stay = z
+  .object({
+    kind: z.literal("stay"),
+    status: z.literal("confirmed"),
+    property: z.string().min(1),
+    location: z.string().min(1),
+    checkIn: date,
+    checkOut: date,
+  })
+  .refine((s) => s.checkOut > s.checkIn, { path: ["checkOut"], message: "must be after checkIn" });
+
+const activityZone = z.string({
+  error: (issue) =>
+    issue.input === undefined
+      ? "is required: work out the IANA time zone from the location, or ask the traveller, then supply it"
+      : undefined,
+});
+
+const activity = z
+  .object({
+    kind: z.literal("activity"),
+    status: z.literal("confirmed"),
+    name: z.string().min(1),
+    location: z.string().min(1),
+    start: localTime,
+    end: localTime,
+    timeZone: activityZone.pipe(timeZone),
+  })
+  .refine((a) => a.end > a.start, { path: ["end"], message: "must be after start" });
+
+const leg = z.discriminatedUnion("kind", [flight, stay, activity]);
+
 const booking = z.object({
   vendor: z.string().min(1),
   reference: z.string().min(1).describe("Confirmation reference. Only its last two characters are ever written to the file."),
-  legs: z.array(flight).min(1),
+  legs: z.array(leg).min(1),
 });
 
 export const tripSchema = z.object({
   name: z.string().min(1),
-  startDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'must be a date like "2026-12-01"' })
-    .refine(isRealDate, { message: "is not a real date" }),
+  startDate: date,
   homeCity: z.string().min(1),
   travellers: z.array(z.string()).optional(),
   bookings: z.array(booking).min(1),
@@ -59,3 +93,6 @@ export const tripSchema = z.object({
 
 export type Trip = z.infer<typeof tripSchema>;
 export type Flight = z.infer<typeof flight>;
+export type Stay = z.infer<typeof stay>;
+export type Activity = z.infer<typeof activity>;
+export type Leg = z.infer<typeof leg>;

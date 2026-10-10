@@ -1,29 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { oneFlightTrip } from "./samples.js";
 import { makeHome, startServer, textOf } from "./harness.js";
-
-// An invented trip. No real trip data is used anywhere in these tests.
-const oneFlightTrip = {
-  name: "Sample Japan Trip",
-  startDate: "2026-12-01",
-  homeCity: "London",
-  bookings: [
-    {
-      vendor: "Sample Air; Test",
-      reference: "ABC123",
-      legs: [
-        {
-          kind: "flight",
-          status: "confirmed",
-          flightNumber: "JL044",
-          departure: { location: "London Heathrow (LHR)", localTime: "2026-12-01T11:30", timeZone: "Europe/London" },
-          arrival: { location: "Tokyo Haneda (HND)", localTime: "2026-12-02T07:35", timeZone: "Asia/Tokyo" },
-        },
-      ],
-    },
-  ],
-};
 
 const knownGood = (name: string) => readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
 // DTSTAMP is the export moment, so it is the one line that cannot be saved.
