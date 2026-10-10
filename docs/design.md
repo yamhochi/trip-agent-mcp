@@ -1,24 +1,45 @@
 # Design decisions so far
 
-Agreed in a design interview on 2026-10-09. Open branches are at the end.
+First agreed in a design interview on 2026-10-09 and revised on 2026-10-10, when the server became stateless ([ADR 0002](adr/0002-the-public-mcp-keeps-no-trips.md)). Words are defined in [CONTEXT.md](../CONTEXT.md).
+
+## What it is
+
+A local MCP server. The traveller's own Claude reads their mailbox through the traveller's own email connector, assembles the trip in the conversation and calls this server. The server checks the trip, and writes a calendar (`.ics`) file on the traveller's computer. It reads no email and keeps no trip store. The private application (Supabase) is a separate project and is not a dependency; code is written fresh here, and sharing code later is a separate decision.
 
 ## Settled
 
-1. **Audience and promise.** An individual traveller using Claude Desktop. No Supabase, no sign-in: the server reads and writes a local file and exports a calendar file.
-2. **Scope.** The public repository is the MCP server and the code it needs. The web app is not part of it; whether it is ever public is a separate decision.
-3. **One store in the public product.** A local file, behind the same trip store interface the private application's Supabase store implements, proven by the same contract tests. No Supabase code in this repository.
-4. **Repository shape.** This repository owns `core`, the file store and the MCP server (ADR 0001). The private repository consumes it from npm.
-5. **Licence and name.** MIT. Working name `trip-agent-mcp`, to be checked on npm before the first publish.
-6. **No skill in version 1.** The email-reading playbook stays in the server's instructions and prompts, which work in any client.
-7. **Version 1.** The local file store, the calendar export, and the work to publish. Updating a calendar through a calendar connector comes later, designed after seeing how real calendar apps treat a re-imported file.
-8. **The server keeps trips.** A calendar export is an export of the local trip file. Keeping trips is what makes gaps, "manual edits win", refresh after an amendment and history possible.
-9. **Where the export goes.** A default folder (`~/Documents/trip-agent/`), changeable with an environment variable in the MCP configuration. The export tool takes a filename only, never a path, so the model cannot choose where a file is written. One `.ics` file per trip, overwritten on each export, with the path in the tool's reply.
-10. **What is in the export.** Legs only. Flights at their real departure and arrival times in their own time zones; stays as all-day events from check-in to check-out; activities and dinners at their times. No markers in the first version. Cancelled legs and ideas are left out. Notes go in the description; booking references, and anything the privacy guard blocks, never do. Each leg keeps one event identity for life so a re-import updates it.
+1. **Audience.** An individual traveller using any client that runs a local MCP server (Claude Desktop, Claude Code, Codex, Cursor and others). No account, no sign-in, no database. MIT licence.
+2. **Scope of version 1.** Check a trip for gaps, export it as a calendar file, and ship it so a traveller can install it. No skill: the playbook lives in the server's instructions and in each tool's description, because clients differ in what they pass to the model.
+3. **Four tools.**
+   - `check_trip`: the three gap rules (unbooked night, broken location chain, missing return), each with plain-English wording for Claude to relay. It also reports recorded gaps that are now covered, and by which leg.
+   - `export_trip`: validates the trip, writes the `.ics`, returns the path.
+   - `get_trip_file_info`: whether a trip's file exists, its bookmark and last export time.
+   - `open_trip_file`: opens the exported file in the default calendar app, and returns the path instead of failing where no app exists.
+4. **Input.** Structured legs only, in three kinds: flight (a time zone at each end), stay (check-in to check-out) and activity (a named time zone, required). The trip carries a home city. Bookings carry their deadlines when the email states them.
+5. **Privacy guard.** The export rejects, with a message Claude can act on, card, passport, e-ticket and loyalty numbers in any free-text field, and notes over a length cap. The server masks a booking code down to its last two characters and never writes the full code.
+6. **Event identity.** A fingerprint of the booking reference plus the flight number or property, leaving out dates and times, so an amended booking updates its event. Legs without a reference use type, name and original date.
+7. **Re-exports.** A cancelled leg is exported as a cancelled event, and so is a fixed gap, because importing a file never removes events. Claude shows the traveller the assembled trip, the gaps and any gaps now cleared, and the traveller confirms before every export.
+8. **The file.** One `.ics` per trip, named by the server from the trip name and start date. Writes go to a temporary file and are renamed over the old one, keeping one `.bak`. The file carries a versioned bookmark (the date of the latest email processed) and the ids of the gap events last exported. This is the only memory the server has.
+9. **Where files go.** `Documents/trip-agent/` in the home folder, created if missing, changed by an extension setting or the `TRIP_AGENT_DIR` environment variable. Tools take a trip name and date, never a path. If the folder cannot be written, the tool says so.
+10. **Event content.** A plain title with the kind first, a location, a description with notes, the masked booking code and "approximate" flags where a time was assumed, and the email link as the event's link. No traveller names, costs or alarms, and English only.
+11. **Extra events.**
+    - Included breakfast: a confirmed event each morning, about 8 to 10am, in the hotel's time zone.
+    - Hotel shuttle (planned, tentative): 45 minutes ending when airport check-in opens, or 45 minutes after landing. It is made only when a flight matches the day.
+    - Airport check-in block: 3 hours before an international departure, 2 hours before a domestic one, tentative. Claude flags each flight international or domestic.
+    - Deadlines: cancellation and payment dates, only when stated outright.
+    - Gaps: placeholders until fixed.
+12. **Searching the mailbox.** Claude searches from the bookmark, going back a few days, and widens only when the traveller names an email it cannot find. On a first run it searches for the trip. The server cannot enforce this; it is guidance. A missing email connector cannot be detected by the server either, so the instructions tell Claude to check for one and, if there is none, say what is needed and offer pasting the emails instead.
+13. **Install.** A `.mcpb` extension file on each GitHub release for Claude Desktop, and an npm package, `trip-agent-mcp`, for everything else. It must run on the traveller's own computer.
+14. **Testing.** One seam: the tool interface. Sample trips go in, and the results and known-good `.ics` files are checked. A manual test imports the file into a real calendar app twice and looks for duplicates.
+15. **Reminders about deadlines** are gentle guidance in the instructions, not a rule or a tool.
 
-## Still to decide
+## To verify early
 
-- What must be scrubbed before code is copied in: a fresh history, and the real December trip fixture replaced by the sample trip.
-- How the local trip file is protected from corruption (atomic writes, a schema version, what happens when two Claude sessions write at once).
-- How the private application is developed against the public package without a publish for every change.
-- How it is published: npm, and a packaged Desktop extension for one-click install.
-- Calendar updates through a calendar connector: the server works out what changed since last time and Claude applies it.
+- Calendar apps ignore the custom bookmark property, honour cancelled events and match events by id when a file is imported again.
+- Claude Desktop can write to `Documents` without extra permission, including with a redirected Documents folder.
+- The traveller's mail connector offers a date filter and a message link.
+- The install commands for each client.
+
+## Not in version 1
+
+Edits that last across conversations, a calendar connector that updates events directly, a hosted server, a deadline-warning tool, and train, ferry and car-hire leg kinds.
