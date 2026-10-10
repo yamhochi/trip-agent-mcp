@@ -15,8 +15,11 @@ export function createServer(): McpServer {
     async ({ trip }) => {
       const calendar = buildCalendar(trip);
       try {
-        const path = await writeTripFile(trip.name, trip.startDate, calendar);
-        return { content: [{ type: "text", text: `Exported "${trip.name}" to ${path}` }] };
+        const { path, similar } = await writeTripFile(trip.name, trip.startDate, calendar);
+        const notice = similar.length
+          ? ` A file for a similarly named trip with a different start date already exists in that folder (${similar.join(", ")}). If the trip moved, the old file may now be stale: ask the traveller before suggesting they delete it.`
+          : "";
+        return { content: [{ type: "text", text: `Exported "${trip.name}" to ${path}${notice ? "." : ""}${notice}` }] };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return {
