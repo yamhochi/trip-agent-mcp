@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Flight, Trip } from "./schema.js";
+import type { Activity, Flight, Leg, Stay, Trip } from "./schema.js";
 
 const CRLF = "\r\n";
 
@@ -89,25 +89,95 @@ function fold(line: string): string {
 
 const compact = (localTime: string) => localTime.replace(/[-:]/g, "") + "00";
 
-function flightUid(reference: string, flightNumber: string): string {
-  const digest = createHash("sha256").update(`${reference}|${flightNumber}`).digest("hex").slice(0, 32);
+function uid(...facts: string[]): string {
+  const digest = createHash("sha256").update(facts.join("|")).digest("hex").slice(0, 32);
   return `${digest}@trip-agent-mcp`;
 }
 
-function flightEvent(vendor: string, reference: string, leg: Flight, stamp: string): string[] {
-  const { departure, arrival } = leg;
+interface Booking {
+  vendor: string;
+  reference: string;
+}
+
+function event(booking: Booking, id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
   return [
     "BEGIN:VEVENT",
-    `UID:${flightUid(reference, leg.flightNumber)}`,
+    `UID:${id}`,
     `DTSTAMP:${stamp}`,
-    `DTSTART;TZID=${departure.timeZone}:${compact(departure.localTime)}`,
-    `DTEND;TZID=${arrival.timeZone}:${compact(arrival.localTime)}`,
-    `SUMMARY:${escapeText(`Flight ${leg.flightNumber}: ${departure.location} to ${arrival.location}`)}`,
-    `LOCATION:${escapeText(departure.location)}`,
-    `DESCRIPTION:${escapeText(`${vendor} booking, code ending ${reference.slice(-2)}`)}`,
+    dtstart,
+    dtend,
+    `SUMMARY:${escapeText(summary)}`,
+    `LOCATION:${escapeText(location)}`,
+    `DESCRIPTION:${escapeText(`${booking.vendor} booking, code ending ${booking.reference.slice(-2)}`)}`,
     "STATUS:CONFIRMED",
     "END:VEVENT",
   ];
+}
+
+const zoned = (name: string, timeZone: string, localTime: string) => `${name};TZID=${timeZone}:${compact(localTime)}`;
+const allDay = (name: string, date: string) => `${name};VALUE=DATE:${date.replace(/-/g, "")}`;
+
+function legEvent(booking: Booking, leg: Leg, stamp: string): string[] {
+  switch (leg.kind) {
+    case "flight":
+      return flightEvent(booking, leg, stamp);
+    case "stay":
+      return stayEvent(booking, leg, stamp);
+    case "activity":
+      return activityEvent(booking, leg, stamp);
+  }
+}
+
+function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
+  const { departure, arrival } = leg;
+  return event(
+    booking,
+    uid(booking.reference, leg.flightNumber),
+    stamp,
+    zoned("DTSTART", departure.timeZone, departure.localTime),
+    zoned("DTEND", arrival.timeZone, arrival.localTime),
+    `Flight ${leg.flightNumber}: ${departure.location} to ${arrival.location}`,
+    departure.location,
+  );
+}
+
+function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
+  return event(
+    booking,
+    uid(booking.reference, leg.property),
+    stamp,
+    allDay("DTSTART", leg.checkIn),
+    allDay("DTEND", leg.checkOut),
+    `Stay: ${leg.property}`,
+    leg.location,
+  );
+}
+
+function activityEvent(booking: Booking, leg: Activity, stamp: string): string[] {
+  return event(
+    booking,
+    uid(booking.reference, leg.name),
+    stamp,
+    zoned("DTSTART", leg.timeZone, leg.start),
+    zoned("DTEND", leg.timeZone, leg.end),
+    `Activity: ${leg.name}`,
+    leg.location,
+  );
+}
+
+/** Every zoned time in the leg, so each zone used gets a VTIMEZONE. */
+function zonedTimes(leg: Leg): { timeZone: string; localTime: string }[] {
+  switch (leg.kind) {
+    case "flight":
+      return [leg.departure, leg.arrival];
+    case "stay":
+      return [];
+    case "activity":
+      return [
+        { timeZone: leg.timeZone, localTime: leg.start },
+        { timeZone: leg.timeZone, localTime: leg.end },
+      ];
+  }
 }
 
 export function buildCalendar(trip: Trip, now: Date = new Date()): string {
@@ -116,10 +186,10 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
   const zones = new Map<string, string[]>();
   for (const b of trip.bookings) {
     for (const leg of b.legs) {
-      for (const end of [leg.departure, leg.arrival]) {
+      for (const end of zonedTimes(leg)) {
         if (!zones.has(end.timeZone)) zones.set(end.timeZone, vtimezone(end.timeZone, end.localTime));
       }
-      events.push(flightEvent(b.vendor, b.reference, leg, stamp));
+      events.push(legEvent(b, leg, stamp));
     }
   }
   const lines = [
