@@ -1,9 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCalendar } from "./ics.js";
-import { exportFolder, tripFilename, writeTripFile } from "./files.js";
+import { tripFilePath, writeTripFile } from "./files.js";
 import { openFile } from "./open.js";
 import { access } from "node:fs/promises";
-import { join } from "node:path";
 import { z } from "zod";
 import { date, tripSchema } from "./schema.js";
 
@@ -38,7 +37,7 @@ export function createServer(): McpServer {
       inputSchema: { name: z.string().min(1), startDate: date },
     },
     async ({ name, startDate }) => {
-      const path = join(exportFolder(), tripFilename(name, startDate));
+      const path = tripFilePath(name, startDate);
       try {
         await access(path);
       } catch {
@@ -54,7 +53,7 @@ export function createServer(): McpServer {
           content: [
             {
               type: "text",
-              text: `Could not open the file here (no calendar app or opener available on this machine). It is at ${path}. Ask the traveller to open or import it themselves.`,
+              text: `Could not open the file here (there is no calendar app, display or opener that responded on this machine). It is at ${path}. Ask the traveller to open or import it themselves.`,
             },
           ],
         };

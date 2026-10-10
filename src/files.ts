@@ -20,10 +20,14 @@ export function tripFilename(name: string, startDate: string): string {
   return `${slug || "trip"}-${startDate}.ics`;
 }
 
+/** Where a trip's calendar file lives, whether or not it has been written yet. */
+export function tripFilePath(name: string, startDate: string): string {
+  return join(exportFolder(), tripFilename(name, startDate));
+}
+
 export async function writeTripFile(name: string, startDate: string, content: string): Promise<string> {
-  const folder = exportFolder();
-  await mkdir(folder, { recursive: true });
-  const path = join(folder, tripFilename(name, startDate));
+  await mkdir(exportFolder(), { recursive: true });
+  const path = tripFilePath(name, startDate);
   const temp = `${path}.tmp-${process.pid}`;
   await writeFile(temp, content, "utf8");
   await rename(temp, path);

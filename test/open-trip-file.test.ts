@@ -34,6 +34,14 @@ async function exportSample(env: Record<string, string>) {
 }
 
 const trip = { name: oneFlightTrip.name, startDate: oneFlightTrip.startDate };
+const exported = (dir: string) => join(dir, "sample-japan-trip-2026-12-01.ics");
+
+/** The reply a traveller gets where nothing can open the file: the path, plainly, and no error. */
+function expectFallback(result: unknown, dir: string) {
+  expect((result as { isError?: boolean }).isError).toBeFalsy();
+  expect(textOf(result)).toContain("Could not open");
+  expect(textOf(result)).toContain(exported(dir));
+}
 
 describe.skipIf(process.platform === "win32")("open_trip_file", () => {
   it("opens an exported trip file through the platform's default opener", async () => {
@@ -41,11 +49,10 @@ describe.skipIf(process.platform === "win32")("open_trip_file", () => {
     const opener = fakeOpener();
     const server = await exportSample({ TRIP_AGENT_DIR: dir, PATH: opener.bin, DISPLAY: ":0" });
     const result = await server.client.callTool({ name: "open_trip_file", arguments: trip });
-    const path = join(dir, "sample-japan-trip-2026-12-01.ics");
     expect(result.isError).toBeFalsy();
-    expect(opener.opened()).toEqual([path]);
+    expect(opener.opened()).toEqual([exported(dir)]);
     expect(textOf(result)).toContain("Opened");
-    expect(textOf(result)).toContain(path);
+    expect(textOf(result)).toContain(exported(dir));
   });
 
   it("says there is no exported file, and opens nothing, when the trip was never exported", async () => {
@@ -80,7 +87,9 @@ describe.skipIf(process.platform === "win32")("open_trip_file", () => {
       name: "open_trip_file",
       arguments: { name: "../decoy", startDate: "2026-12-01" },
     });
+    // The hostile name is flattened into a plain file name inside the export folder, which has no such file.
     expect(hostileName.isError).toBe(true);
+    expect(textOf(hostileName)).toContain("No exported file");
     expect(opener.opened()).toEqual([]);
   });
 
@@ -89,9 +98,7 @@ describe.skipIf(process.platform === "win32")("open_trip_file", () => {
     const emptyBin = mkdtempSync(join(tmpdir(), "trip-agent-empty-"));
     const server = await exportSample({ TRIP_AGENT_DIR: dir, PATH: emptyBin, DISPLAY: ":0" });
     const result = await server.client.callTool({ name: "open_trip_file", arguments: trip });
-    expect(result.isError).toBeFalsy();
-    expect(textOf(result)).toContain("Could not open");
-    expect(textOf(result)).toContain(join(dir, "sample-japan-trip-2026-12-01.ics"));
+    expectFallback(result, dir);
   });
 
   it("returns the file's path and a plain message, not an error, when the opener fails", async () => {
@@ -99,9 +106,7 @@ describe.skipIf(process.platform === "win32")("open_trip_file", () => {
     const opener = fakeOpener(1);
     const server = await exportSample({ TRIP_AGENT_DIR: dir, PATH: opener.bin, DISPLAY: ":0" });
     const result = await server.client.callTool({ name: "open_trip_file", arguments: trip });
-    expect(result.isError).toBeFalsy();
-    expect(textOf(result)).toContain("Could not open");
-    expect(textOf(result)).toContain(join(dir, "sample-japan-trip-2026-12-01.ics"));
+    expectFallback(result, dir);
   });
 
   it.skipIf(process.platform !== "linux")("does not try to open anything on a Linux machine with no display", async () => {
@@ -110,9 +115,7 @@ describe.skipIf(process.platform === "win32")("open_trip_file", () => {
     // No DISPLAY or WAYLAND_DISPLAY: an SSH session or a container.
     const server = await exportSample({ TRIP_AGENT_DIR: dir, PATH: opener.bin });
     const result = await server.client.callTool({ name: "open_trip_file", arguments: trip });
-    expect(result.isError).toBeFalsy();
+    expectFallback(result, dir);
     expect(opener.opened()).toEqual([]);
-    expect(textOf(result)).toContain("Could not open");
-    expect(textOf(result)).toContain(join(dir, "sample-japan-trip-2026-12-01.ics"));
   });
 });
