@@ -1,0 +1,34 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//trip-agent-mcp//EN
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Sample Japan Trip
+BEGIN:VEVENT
+UID:3ab0e4b5d5c1e158dddf838eee4c5e0c@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;VALUE=DATE:20261202
+DTEND;VALUE=DATE:20261205
+SUMMARY:Stay: Sample Hotel Tokyo
+LOCATION:Tokyo
+DESCRIPTION:Sample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:ac182c0fded7b50f1d287ee23d5372c2@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261121
+SUMMARY:Free cancellation ends: Sample Hotel Tokyo
+DESCRIPTION:Check the booking: free cancellation ends on this date\, so act before then. The date comes from the booking email.\nSample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:f655100702a8364d95540cb106188a6a@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;VALUE=DATE:20261125
+DTEND;VALUE=DATE:20261126
+SUMMARY:Payment due: Sample Hotel Tokyo
+DESCRIPTION:Check the booking: payment is due on this date\, so act before then. The date comes from the booking email.\nSample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR

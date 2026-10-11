@@ -29,7 +29,7 @@ A person going on a trip, listed by name on it.
 _Avoid_: Passenger, guest
 
 **Deadline**:
-A date on a booking by which the traveller must act: free cancellation ends, or payment is due. Recorded only when the email states it.
+A date on a booking by which the traveller must act: free cancellation ends, or payment is due. Recorded only when the email states it. It appears on the calendar as an all-day event.
 _Avoid_: Reminder, cut-off
 
 **Gap**:
