@@ -1,0 +1,56 @@
+# Builds and tests the package when a version tag is pushed (or when started by hand), and dry-run publishes it.
+# The real publish needs the maintainer's npm credentials, so it stays off until the repository variable
+# PUBLISH_TO_NPM is set to "true" and a secret NPM_TOKEN exists.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Check that the tag matches the version in package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
+            exit 1
+          fi
+      - name: Show what would be published
+        run: npm pack --dry-run
+      - name: Dry-run publish
+        run: npm publish --dry-run --access public
+
+  publish:
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') && vars.PUBLISH_TO_NPM == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

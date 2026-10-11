@@ -2,16 +2,44 @@
   "name": "trip-agent-mcp",
   "version": "0.0.0",
   "description": "MCP server that checks a trip for gaps and exports it as a calendar file",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "travel",
+    "itinerary",
+    "calendar",
+    "ics"
+  ],
+  "homepage": "https://github.com/yamhochi/trip-agent-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/yamhochi/trip-agent-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yamhochi/trip-agent-mcp.git"
+  },
+  "license": "MIT",
+  "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "trip-agent-mcp": "dist/index.js"
+  },
   "directories": {
     "doc": "docs"
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && vitest run"
   },
-  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "zod": "^4.6.5"
@@ -20,15 +48,5 @@
     "@types/node": "^26.6.5",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
-  },
-  "type": "module",
-  "bin": {
-    "trip-agent-mcp": "dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "engines": {
-    "node": ">=22"
   }
 }

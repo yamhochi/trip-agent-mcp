@@ -2,9 +2,9 @@
 
 An MCP server that checks a traveller's trip for what is missing and exports it as a calendar file on their own computer.
 
-**Status: design stage.** There is no code here yet, and nothing is published. The decisions so far are in [docs/design.md](docs/design.md) and [docs/adr/](docs/adr/); the words the project uses are in [CONTEXT.md](CONTEXT.md).
+**Status: working, not yet published.** The server checks a trip and exports it as a calendar file; the npm package builds and installs from its tarball, but nothing is on npm yet, so the commands below start working at the first release. The decisions so far are in [docs/design.md](docs/design.md) and [docs/adr/](docs/adr/); the words the project uses are in [CONTEXT.md](CONTEXT.md).
 
-## What it will do
+## What it does
 
 - Your own Claude reads your booking emails with your own email connector and assembles the trip. This server never reads email and keeps no database.
 - It finds gaps by plain rules, not by asking a model: a night with nowhere to stay, a journey that does not connect, a missing return. Gaps show up on your calendar as placeholders until you fix them.
@@ -20,7 +20,7 @@ An MCP server that checks a traveller's trip for what is missing and exports it 
 
 ## Install
 
-> Planned. Nothing is published yet, and these commands have not been checked against each client. Confirm them against the client's documentation before the first release.
+> Nothing is published yet, so `npx -y trip-agent-mcp` works from the first release. The package itself is checked: it installs from its tarball on a clean project and starts over standard input and output. The `claude mcp add` and `codex mcp add` lines below have not yet been run against each client; the end-to-end check (#22) does that. Confirm them against the client's documentation if one fails.
 
 **Claude Desktop (macOS and Windows).** Download the `.mcpb` file from the latest release and open it. Claude Desktop shows an install dialog, where you can also pick the export folder.
 
@@ -48,6 +48,15 @@ codex mcp add trip-agent -- npx -y trip-agent-mcp
   }
 }
 ```
+
+**Before the first release.** To try it from a clone, build it and point your client at the built file instead of npx:
+
+```bash
+npm install && npm run build
+claude mcp add trip-agent -- node /full/path/to/trip-agent-mcp/dist/index.js
+```
+
+Or build a tarball with `npm pack` and run `npx -y ./trip-agent-mcp-<version>.tgz`.
 
 **Where the files go.** `Documents/trip-agent/` in your home folder, created if it is missing. Change it with the extension's setting, or by setting the `TRIP_AGENT_DIR` environment variable for the server.
 
