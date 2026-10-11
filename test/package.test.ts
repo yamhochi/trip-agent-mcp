@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { startServer } from "./harness.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const root = join(import.meta.dirname, "..");
@@ -105,6 +106,18 @@ describe("the packed package", () => {
     }
     expect(statSync(join(project, "node_modules", "trip-agent-mcp", "dist", "index.js")).isFile()).toBe(true);
   }, 180_000);
+});
+
+describe("the version the server reports", () => {
+  it("is the version in package.json, which is also the manifest's", async () => {
+    const server = await startServer();
+    try {
+      expect(server.client.getServerVersion()).toMatchObject({ name: "trip-agent-mcp", version: manifest.version });
+      expect(JSON.parse(readFileSync(join(root, "manifest.json"), "utf8")).version).toBe(manifest.version);
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 describe("the release workflow", () => {
