@@ -273,7 +273,9 @@ describe("what is never written", () => {
     expect(result.isError).toBeFalsy();
     expect(ics).not.toContain("Testwell");
     expect(ics).not.toContain("Bob");
-    expect(ics).not.toContain("1234");
+    // The whole cost, not just "1234": every event carries the current time, which reads 1234 during 12:34 UTC.
+    expect(ics).not.toContain("1234.56");
+    expect(ics).not.toContain("GBP");
     expect(ics).not.toMatch(/VALARM|TRIGGER|ATTENDEE|ORGANIZER/);
   });
 });
