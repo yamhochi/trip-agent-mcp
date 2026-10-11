@@ -3,6 +3,7 @@ import type { Activity, Leg, Stay, Travel, Trip } from "./schema.js";
 import { sameArea, tidy } from "./places.js";
 import { findGaps, type Gap, type RecordedGap } from "./gaps.js";
 import { cancelledEvents, readRecord, recordLine } from "./gap-record.js";
+import { bookmarkLine, readBookmark } from "./bookmark.js";
 import { instantOf, shiftLocal, wallClockAsUtc, zoneAt } from "./time.js";
 
 const CRLF = "\r\n";
@@ -412,7 +413,8 @@ export interface BuiltCalendar {
   cancelled: number;
 }
 
-export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: string): BuiltCalendar {
+/** `bookmark` is the date of the latest email processed; without one, the earlier file's bookmark is carried over. */
+export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: string, bookmark?: string): BuiltCalendar {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const events: string[][] = [];
   const zones = new Map<string, string[]>();
@@ -439,6 +441,7 @@ export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: str
     "CALSCALE:GREGORIAN",
     `X-WR-CALNAME:${escapeText(trip.name)}`,
     recordLine(gapped.record),
+    bookmarkLine({ date: bookmark ?? readBookmark(previous).date, exportedAt: now.toISOString() }),
     ...[...zones.keys()].sort().flatMap((k) => zones.get(k)!),
     ...events.flat(),
     "END:VCALENDAR",

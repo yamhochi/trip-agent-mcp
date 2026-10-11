@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { hotelBooking, oneFlightTrip } from "./samples.js";
-import { makeHome, startServer, textOf } from "./harness.js";
+import { makeHome, startServer, textOf, stableIcs } from "./harness.js";
 
 const open: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
@@ -362,7 +362,7 @@ describe("gap placeholders in the tool descriptions", () => {
 
 describe("gap placeholders in known-good files", () => {
   const expected = (name: string) => readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
-  const normalise = (ics: string) => unfold(ics).replace(/^DTSTAMP:.*$/gm, "DTSTAMP:20000101T000000Z");
+  const normalise = (ics: string) => stableIcs(ics);
 
   it("exports a trip with an unbooked night and then the same trip fixed as the known-good files", async () => {
     const s = await session();

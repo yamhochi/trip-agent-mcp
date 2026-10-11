@@ -3,9 +3,8 @@ VERSION:2.0
 PRODID:-//trip-agent-mcp//EN
 CALSCALE:GREGORIAN
 X-WR-CALNAME:Sample Japan Trip
-X-TRIP-AGENT-GAPS;VERSION=1:%5B%7B%22rule%22%3A%22missing-return%22%2C%22id
- %22%3A%2245b7340095b96953d89d0e1bf3def453%22%2C%22start%22%3A%222026-12-02
- %22%2C%22to%22%3A%22London%22%7D%5D
+X-TRIP-AGENT-GAPS;VERSION=1:%5B%7B%22rule%22%3A%22missing-return%22%2C%22id%22%3A%2245b7340095b96953d89d0e1bf3def453%22%2C%22start%22%3A%222026-12-02%22%2C%22to%22%3A%22London%22%7D%5D
+X-TRIP-AGENT-BOOKMARK;VERSION=2:%7B%22exportedAt%22%3A%222000-01-01T00%3A00%3A00.000Z%22%7D
 BEGIN:VTIMEZONE
 TZID:Asia/Tokyo
 BEGIN:STANDARD
@@ -41,8 +40,7 @@ DTSTART;TZID=Europe/London:20261201T083000
 DTEND;TZID=Europe/London:20261201T113000
 SUMMARY:Airport check-in: Flight JL044
 LOCATION:London Heathrow (LHR)
-DESCRIPTION:Approximate: check-in is assumed to open 3 hours before an inte
- rnational departure.\nSample Air\; Test booking\, code ending 23
+DESCRIPTION:Approximate: check-in is assumed to open 3 hours before an international departure.\nSample Air\; Test booking\, code ending 23
 STATUS:TENTATIVE
 END:VEVENT
 BEGIN:VEVENT
@@ -51,9 +49,7 @@ DTSTAMP:20000101T000000Z
 DTSTART;VALUE=DATE:20261202
 DTEND;VALUE=DATE:20261203
 SUMMARY:Missing: no way back to London
-DESCRIPTION:Missing return: the trip ends in Tokyo Haneda (HND)\, and nothi
- ng is booked or planned to take the traveller back to London. This placeho
- lder is cleared (cancelled) once the gap is fixed.
+DESCRIPTION:Missing return: the trip ends in Tokyo Haneda (HND)\, and nothing is booked or planned to take the traveller back to London. This placeholder is cleared (cancelled) once the gap is fixed.
 STATUS:TENTATIVE
 END:VEVENT
 END:VCALENDAR
