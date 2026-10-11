@@ -95,10 +95,7 @@ function uid(...facts: string[]): string {
   return `${digest}@trip-agent-mcp`;
 }
 
-interface Booking {
-  vendor: string;
-  reference?: string;
-}
+type Booking = Trip["bookings"][number];
 
 /**
  * A leg's identity is a fingerprint of facts that do not change when a booking is amended: the
@@ -109,10 +106,23 @@ function legId(booking: Booking, kind: Leg["kind"], name: string, date: string):
   return booking.reference ? uid("booked", booking.reference, kind, name) : uid("unbooked", kind, name, date);
 }
 
+/** The last two characters, or nothing at all for a code too short to show any of without giving it away. */
+const maskedCode = (reference: string) => (reference.length > 2 ? reference.slice(-2) : "hidden");
+
 function describeBooking(booking: Booking): string {
-  return booking.reference
-    ? `${booking.vendor} booking, code ending ${booking.reference.slice(-2)}`
+  const line = booking.reference
+    ? `${booking.vendor} booking, code ending ${maskedCode(booking.reference)}`
     : `${booking.vendor} (no booking reference)`;
+  return booking.note ? `${line}\n${booking.note}` : line;
+}
+
+/** A search in the traveller's mailbox that finds the one email, built from the source alone. */
+function emailLink(source: NonNullable<Booking["source"]>): string {
+  const [y, m, d] = source.receivedDate.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  const ymd = (dt: Date) => `${dt.getUTCFullYear()}/${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`;
+  const query = `rfc822msgid:${source.messageId.replace(/^<|>$/g, "")} from:${source.senderDomain} after:${y}/${m}/${d} before:${ymd(next)}`;
+  return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
 }
 
 function event(booking: Booking, id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
@@ -125,6 +135,7 @@ function event(booking: Booking, id: string, stamp: string, dtstart: string, dte
     `SUMMARY:${escapeText(summary)}`,
     `LOCATION:${escapeText(location)}`,
     `DESCRIPTION:${escapeText(describeBooking(booking))}`,
+    ...(booking.source ? [`URL:${booking.source.link ?? emailLink(booking.source)}`] : []),
     "STATUS:CONFIRMED",
     "END:VEVENT",
   ];
