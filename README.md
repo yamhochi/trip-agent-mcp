@@ -11,6 +11,12 @@ An MCP server that checks a traveller's trip for what is missing and exports it 
 - It exports the trip as an `.ics` file in a folder on your computer, with stable event identities so importing it again updates events instead of duplicating them. It also adds included breakfasts, hotel shuttles, airport check-in blocks, and free-cancellation and payment deadlines when your emails state them.
 - It never writes passport, card, e-ticket or loyalty numbers, or the text of an email. This is enforced in code, and booking codes are shortened to their last two characters.
 
+## What it looks like
+
+![A week of an invented trip to Tokyo in Apple Calendar on a Mac: flights with airport check-in times, a hotel stay, included breakfasts, a hotel shuttle, a dinner, a free-cancellation deadline, and a tentative "Missing: no lodging booked" placeholder on the night nothing is booked](https://raw.githubusercontent.com/yamhochi/trip-agent-mcp/main/docs/images/apple-calendar-month.png)
+
+An invented trip, exported by Trip Agent and imported into Apple Calendar. The hotel's included breakfasts, the airport shuttle, the check-in times and the free-cancellation date are there because the booking emails said so. The "Missing:" event marks the one night with nowhere to stay; it goes away once you fix the gap.
+
 ## What you need
 
 - A client that can run a local MCP server (see below).
@@ -66,6 +72,16 @@ Or build a tarball with `npm pack` and run `npx -y ./trip-agent-mcp-<version>.tg
 **Where the files go.** `Documents/trip-agent/` in your home folder, created if it is missing. Change it with the extension's setting, or by setting the `TRIP_AGENT_DIR` environment variable for the server.
 
 **Opening the file.** The server can hand the exported file to your default calendar app. Importing it is still your step, and your calendar app decides whether an updated event replaces the old one. Where no calendar app is available, the tool returns the file's path.
+
+## Try it
+
+Once it is installed, ask your Claude in plain language. It reads your email, builds the trip, checks it, and asks before it writes anything. It checks the trip it builds from your emails, not your calendar app.
+
+- **Build and check a trip.** "Find my booking emails for my Tokyo trip in December and check the trip for gaps."
+- **Fix a gap.** "I'm staying with a friend on the night of 5 December. Add that and check again."
+- **Export.** "That looks right. Export it and open it in my calendar."
+- **Update later.** "Any new booking emails for the Tokyo trip? Update the calendar file." Then import the file again in your calendar app: events are updated, not duplicated.
+- **No email connector?** Paste your booking details into the chat and say "use only these".
 
 ## What it will not be
 

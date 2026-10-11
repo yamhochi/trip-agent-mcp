@@ -116,6 +116,23 @@ describe("the readme, which npm shows as the package's front page", () => {
     expect(relative).toEqual([]);
   });
 
+  it("shows the exported trip in a calendar: an image with a description, stored in the repository and linked by full address, of a sensible size", () => {
+    const image = readme.match(/!\[([^\]]+)\]\((https:\/\/raw\.githubusercontent\.com\/yamhochi\/trip-agent-mcp\/main\/(docs\/images\/[^)\s]+))\)/);
+    expect(image, "an image linked by its raw GitHub address").not.toBeNull();
+    expect(image![1].length).toBeGreaterThan(20);
+    const file = join(root, image![3]);
+    expect(existsSync(file)).toBe(true);
+    expect(statSync(file).size).toBeLessThan(1_000_000);
+    expect(readFileSync(file).subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  });
+
+  it("gives example prompts to ask Claude: build and check a trip, fix a gap, export, update, and paste instead of an email connector", () => {
+    const start = readme.indexOf("## Try it");
+    expect(start).toBeGreaterThan(0);
+    const section = readme.slice(start);
+    for (const pattern of [/check the trip for gaps/i, /fix a gap|add that and check again/i, /export it/i, /update the calendar file/i, /paste/i]) expect(section).toMatch(pattern);
+  });
+
   it("does not say which version is the current one, since the page would go stale with the next release", () => {
     const status = readme.split("\n").find((line) => line.startsWith("**Status"))!;
     expect(status).not.toMatch(/\d+\.\d+\.\d+/);
