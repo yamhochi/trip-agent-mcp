@@ -118,6 +118,50 @@ describe("email links", () => {
     expect(query).toContain("after:2026/10/1 before:2026/10/2");
   });
 
+  it("uses the message link the mail connector supplied, exactly as given, in preference to a search", async () => {
+    // Not Gmail: a provider whose links the server could never build itself.
+    const link = "https://outlook.sample.test/mail/id/AAMkAD;x,y=z/0?a=1&b=2";
+    const withLink = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const { result, ics } = await exportTrip(withLink);
+    expect(result.isError).toBeFalsy();
+    expect(unfold(ics!).match(/^URL:(.*)$/m)?.[1]).toBe(link);
+    expect(ics).not.toContain("mail.google.com");
+  });
+
+  it.each([
+    ["a script address", "javascript:alert(1)"],
+    ["an unencrypted address", "http://outlook.sample.test/mail/id/1"],
+    ["a local file", "file:///etc/passwd"],
+    ["an address with a line break that would inject calendar lines", "https://outlook.sample.test/a\r\nEND:VEVENT\r\nBEGIN:VEVENT"],
+    ["an address with a space", "https://outlook.sample.test/a b"],
+    ["an address with a quote or angle bracket", 'https://outlook.sample.test/a"<b>'],
+    ["an address that is far too long", "https://outlook.sample.test/" + "a".repeat(2100)],
+  ])("rejects a connector link that is %s, and writes nothing", async (_what, link) => {
+    const bad = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const { result, ics } = await exportTrip(bad);
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("link");
+    expect(ics).toBeUndefined();
+  });
+
+  it("still runs the privacy guard over a connector link", async () => {
+    const link = "https://outlook.sample.test/mail/4111111111111111";
+    const bad = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const { result, ics } = await exportTrip(bad);
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatch(/card number/i);
+    expect(ics).toBeUndefined();
+  });
+
+  it("still folds a long connector link and gives it back whole", async () => {
+    const link = "https://outlook.sample.test/mail/id/" + "AbC123_-".repeat(40);
+    const withLink = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const { result, ics } = await exportTrip(withLink);
+    expect(result.isError).toBeFalsy();
+    expect(unfold(ics!).match(/^URL:(.*)$/m)?.[1]).toBe(link);
+    for (const physical of ics!.split("\r\n")) expect(Buffer.byteLength(physical)).toBeLessThanOrEqual(75);
+  });
+
   it("leaves the link out when there is no source", async () => {
     const { ics } = await exportTrip(oneFlightTrip);
     expect(ics).not.toContain("URL");

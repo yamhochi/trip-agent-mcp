@@ -135,7 +135,7 @@ function event(booking: Booking, id: string, stamp: string, dtstart: string, dte
     `SUMMARY:${escapeText(summary)}`,
     `LOCATION:${escapeText(location)}`,
     `DESCRIPTION:${escapeText(describeBooking(booking))}`,
-    ...(booking.source ? [`URL:${emailLink(booking.source)}`] : []),
+    ...(booking.source ? [`URL:${booking.source.link ?? emailLink(booking.source)}`] : []),
     "STATUS:CONFIRMED",
     "END:VEVENT",
   ];

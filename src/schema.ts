@@ -83,6 +83,15 @@ const source = z
     messageId: z.string().min(1),
     senderDomain: z.string().regex(/^[A-Za-z0-9.-]+$/, { message: 'must be a bare domain such as "sample-air.test"' }),
     receivedDate: date,
+    link: z
+      .string()
+      .max(2000, { message: "is too long for a link to one message" })
+      // The link goes into the file as written, so it must be a plain https address: no spaces, line breaks or quotes.
+      .regex(/^https:\/\/[^\s"<>\\^`{|}]+$/, { message: "must be a plain https:// link to the one message, as the mail connector gave it" })
+      .optional()
+      .describe(
+        "The link to this one message, if the mail connector gives one. Pass it exactly as given. Leave it out when the connector gives none; a Gmail search link is then built from the other fields, which only works for Gmail.",
+      ),
   })
   .describe("A pointer back to the one email this booking came from. Never the email's content.");
 
