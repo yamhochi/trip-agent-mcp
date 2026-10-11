@@ -25,7 +25,7 @@ An MCP server that checks a traveller's trip for what is missing and exports it 
 **Claude Desktop (macOS and Windows).** Download `trip-agent-mcp-<version>.mcpb` from the latest [release](https://github.com/yamhochi/trip-agent-mcp/releases) and open it (double-click it, or drag it into Claude Desktop). Claude Desktop shows an install dialog:
 
 - **Export folder** (optional) is where the calendar files go. Leave it blank to use `Documents/trip-agent` in your home folder, or pick a folder.
-- Nothing else needs setting up. Node.js comes with Claude Desktop, so you do not need to install it.
+- Nothing else needs setting up. Claude Desktop runs the extension with its own copy of Node.js, so you do not install it yourself. (Whether that copy is new enough, Node 22 or later, is checked in #22; if the extension will not start, that is the first thing to look at.)
 
 There is no release yet, so to try the extension now build it yourself: `npm install && npm run build:mcpb` writes `build/trip-agent-mcp-<version>.mcpb`. It has been checked by unpacking it and starting the server the way the format describes; it has not yet been opened in Claude Desktop itself (that is part of #22).
 

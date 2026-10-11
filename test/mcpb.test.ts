@@ -38,7 +38,16 @@ describe("the extension manifest", () => {
     const m = manifest();
     expect(m.compatibility.platforms.sort()).toEqual(["darwin", "win32"]);
     expect(m.compatibility.runtimes.node).toBe(pkg.engines.node);
-    expect(m.tools.map((t: { name: string }) => t.name).sort()).toEqual(["check_trip", "export_trip", "get_trip_file_info", "open_trip_file"]);
+  });
+
+  it("lists exactly the tools the server really offers", async () => {
+    const server = await startServer();
+    try {
+      const { tools } = await server.client.listTools();
+      expect(manifest().tools.map((t: { name: string }) => t.name).sort()).toEqual(tools.map((t) => t.name).sort());
+    } finally {
+      await server.close();
+    }
   });
 
   it("offers the export folder as an optional folder setting, and passes it to the server as TRIP_AGENT_DIR", () => {
@@ -181,6 +190,12 @@ describe("the release workflow and the bundle", () => {
     const bundleJob = t.slice(t.indexOf("\n  bundle:"));
     expect(bundleJob).toMatch(/contents: write/);
     expect(bundleJob).toMatch(/startsWith\(github\.ref, 'refs\/tags\/v'\)/);
+  });
+
+  it("checks that the manifest and the package have the same version before anything is built or published", () => {
+    const t = text();
+    expect(t).toMatch(/require\('\.\/manifest\.json'\)\.version/);
+    expect(t.indexOf("manifest.json says")).toBeLessThan(t.indexOf("npm publish --dry-run"));
   });
 
   it("keeps the bundle as a downloadable build artifact when started by hand", () => {
