@@ -165,6 +165,14 @@ describe("email links", () => {
     expect(ics).not.toContain("mail.google.com");
   });
 
+  it("accepts a Gmail message link, which contains a \"|\", and writes it with %7C", async () => {
+    const link = "https://mail.google.com/mail/?authuser=traveller@sample.test#all/thread-f:1111111111111111111|msg-f:2222222222222222222";
+    const { result, ics } = await exportTrip(withSource({ link }));
+    expect(result.isError).toBeFalsy();
+    expect(unfold(ics!).match(/^URL:(.*)$/m)?.[1]).toBe(link.replace("|", "%7C"));
+    expect(ics).not.toContain("|");
+  });
+
   it.each([
     ["a script address", "javascript:alert(1)"],
     ["an unencrypted address", "http://outlook.sample.test/mail/id/1"],
