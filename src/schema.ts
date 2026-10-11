@@ -125,11 +125,13 @@ const source = z
     link: z
       .string()
       .max(2000, { message: "is too long for a link to one message" })
+      // Gmail's own message links contain a "|" (thread-f:<id>|msg-f:<id>). It is not a valid address character, so write it as %7C, which opens the same message.
+      .transform((link) => link.replaceAll("|", "%7C"))
       // The link goes into the file as written, so it must be a plain https address: no spaces, line breaks or quotes.
-      .regex(/^https:\/\/[^\s"<>\\^`{|}]+$/, { message: "must be a plain https:// link to the one message, as the mail connector gave it" })
+      .pipe(z.string().regex(/^https:\/\/[^\s"<>\\^`{|}]+$/, { message: "must be a plain https:// link to the one message, as the mail connector gave it" }))
       .optional()
       .describe(
-        "The link to this one message, if the mail connector gives one. Pass it exactly as given. Leave it out when the connector gives none; a Gmail search link is then built from the other fields, which only works for Gmail.",
+        "The link to this one message, if the mail connector gives one. Pass it exactly as given (a \"|\" in it is written as %7C). Leave it out when the connector gives none; a Gmail search link is then built from the other fields, which only works for Gmail.",
       ),
   })
   .describe("A pointer back to the one email this booking came from. Never the email's content.");
