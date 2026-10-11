@@ -147,12 +147,13 @@ describe("included breakfast", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("describes the time zone and the breakfast field to Claude in the tool's schema", async () => {
+  it("describes the breakfast field and the time zone to Claude in the tool's schema", async () => {
     const server = await startServer({ TRIP_AGENT_DIR: join(makeHome(), "out") });
     open.push(server);
     const { tools } = await server.client.listTools();
     const schema = JSON.stringify(tools.find((t) => t.name === "export_trip")!.inputSchema);
     expect(schema).toContain("breakfastIncluded");
+    expect(schema).toContain("IANA time zone");
   });
 
   it("exports a trip with an included-breakfast stay as the known-good file", async () => {
