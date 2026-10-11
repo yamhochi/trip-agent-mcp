@@ -48,6 +48,14 @@ _Avoid_: Needs booking, pending
 A leg that was booked and no longer stands. It stays in the trip and is exported as a cancelled event with the same identity as the original, because importing a file never removes events that are merely missing from it.
 _Avoid_: Deleted, removed
 
+**Check-in block**:
+A tentative calendar event before a flight's departure, 3 hours before an international flight and 2 hours before a domestic one, marking when airport check-in is assumed to open. Approximate.
+_Avoid_: Buffer
+
+**Hotel shuttle**:
+A tentative 45-minute calendar event made only when a stay's booking says free airport transit is included and a flight matches: after landing on the check-in day, or ending when the check-in block starts on the check-out day. Approximate.
+_Avoid_: Transfer, taxi
+
 **Mailbox**:
 The traveller's email account, read by their own Claude through the traveller's own email connector. This server never reads it.
 _Avoid_: Email source, inbox
