@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { startServer } from "./harness.js";
 
-const open: { close: () => Promise<void> }[] = [];
+const connected: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
-  await Promise.all(open.splice(0).map((s) => s.close()));
+  await Promise.all(connected.splice(0).map((s) => s.close()));
 });
 
 async function connect() {
   const server = await startServer();
-  open.push(server);
+  connected.push(server);
   const { tools } = await server.client.listTools();
   const description = (name: string) => tools.find((t) => t.name === name)?.description ?? "";
   return { instructions: server.client.getInstructions() ?? "", tools, description };
@@ -16,19 +16,22 @@ async function connect() {
 
 /** Each piece of guidance the route depends on, in the words a model would act on. */
 const guidance: Record<string, RegExp[]> = {
-  "checks that an email connector is available": [/email connector/i, /check/i],
+  "checks that an email connector is available": [/check that an email connector[^.]*is available/i],
   "says plainly that a connector is needed when there is none": [/no (email )?connector|there is none|not available/i, /needs? (one|an email connector)|is needed/i],
   "offers pasting the booking emails instead": [/paste/i, /booking emails/i],
   "asks which trip the traveller means": [/which trip/i],
   "searches from the bookmark, going back a few days": [/from the bookmark/i, /going back a few days/i],
   "widens the search only when the traveller names an email it cannot find": [/widen/i, /names an email/i],
   "falls back to a trip-scoped search when there is no file": [/no file/i, /search the mailbox for the trip itself/i],
-  "shows the trip, the gaps and any gaps now cleared before exporting": [/the trip, the gaps and any gaps now (cleared|covered)/i],
-  "gets confirmation before every export": [/confirmation before every export|confirm before every export/i],
-  "relays gaps in natural language": [/plain English|natural language/i],
-  "mentions close cancellation and payment deadlines when checking": [/cancellation and payment deadlines/i, /close|coming up|soon/i],
-  "creates breakfast, shuttle and deadline events only when the email states them outright": [/breakfast/i, /shuttle/i, /deadline/i, /only when .* states? (it|them) outright|states? (it|them) outright/i],
-  "sets the international flag on flights and asks when unsure": [/international/i, /ask(s)? (the traveller )?if unsure|ask the traveller if you are not sure|when unsure/i],
+  "shows the trip, the gaps and any gaps now cleared before exporting": [/show the traveller the trip, the gaps and any gaps now cleared/i],
+  "gets confirmation before every export": [/get their confirmation before every export/i],
+  "relays gaps in natural language": [/relay each gap to the traveller in plain English/i],
+  "mentions close cancellation and payment deadlines when checking": [/mention any cancellation and payment deadlines that are close/i],
+  "creates breakfast events only when the email states them outright": [/breakfastIncluded \(breakfast\)[^.]*only when the email states each one outright/i],
+  "creates shuttle events only when the email states them outright": [/airportTransit \(the hotel's free airport shuttle\)[^.]*only when the email states each one outright/i],
+  "creates deadline events only when the email states them outright": [/deadlines \(free cancellation ends, payment due\)[^.]*only when the email states each one outright/i],
+  "passes the date of the latest email processed": [/latestEmailDate/],
+  "sets the international flag on flights and asks when unsure": [/Set international on every flight/i, /Ask the traveller if unsure/i],
   "asks for a time zone it cannot work out": [/time zone/i, /cannot work out|can't work out|ask the traveller/i],
 };
 
@@ -49,7 +52,7 @@ describe("server instructions", () => {
     const { instructions } = await connect();
     const message = instructions.match(/"I can't see an email connector[^"]*"/)?.[0] ?? "";
     expect(message).toMatch(/email connector/i);
-    expect(message).toMatch(/needs? one|needs an email connector/i);
+    expect(message).toMatch(/I need one/i);
     expect(message).toMatch(/Gmail|Outlook/);
     expect(message).toMatch(/paste/i);
   });
@@ -75,20 +78,20 @@ describe("tool descriptions", () => {
   it("carry the guidance for export_trip: confirm first, the flag, the time zone, and events only when stated", async () => {
     const { description } = await connect();
     const text = description("export_trip");
-    expect(text).toMatch(/confirmation/i);
-    expect(text).toMatch(/international/i);
-    expect(text).toMatch(/time zone/i);
-    expect(text).toMatch(/breakfast/i);
-    expect(text).toMatch(/shuttle/i);
-    expect(text).toMatch(/deadline/i);
-    expect(text).toMatch(/outright/i);
+    expect(text).toMatch(/confirmation before every export/i);
+    expect(text).toMatch(/Set international on every flight \(ask the traveller if unsure\)/i);
+    expect(text).toMatch(/ask the traveller for any time zone you cannot work out/i);
+    expect(text).toMatch(/breakfastIncluded \(breakfast\)/);
+    expect(text).toMatch(/airportTransit \(the hotel's free airport shuttle\)/);
+    expect(text).toMatch(/deadlines only when the email states each one outright/i);
+    expect(text).toMatch(/latestEmailDate/);
   });
 
   it("carry the guidance for check_trip: natural language, close deadlines, and near misses", async () => {
     const { description } = await connect();
     const text = description("check_trip");
-    expect(text).toMatch(/plain English|natural language/i);
-    expect(text).toMatch(/cancellation and payment deadlines/i);
+    expect(text).toMatch(/relay them to the traveller in natural language/i);
+    expect(text).toMatch(/mention any cancellation and payment deadlines that are close/i);
     expect(text).toMatch(/near miss/i);
   });
 
@@ -107,7 +110,7 @@ describe("tool descriptions", () => {
   it("carry the guidance for open_trip_file: offer it after an export, and only for a file this server exported", async () => {
     const { description } = await connect();
     const text = description("open_trip_file");
-    expect(text).toMatch(/after (a successful|an) export|once (it|the trip) (has been|is) exported/i);
+    expect(text).toMatch(/Offer it after a successful export/);
     expect(text).toMatch(/only a file this server exported/i);
   });
 
