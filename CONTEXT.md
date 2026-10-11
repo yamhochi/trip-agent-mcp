@@ -73,5 +73,5 @@ A file in the iCalendar (.ics) format that lists a trip's legs, deadlines and ga
 _Avoid_: Calendar sync, backup
 
 **Bookmark**:
-The date of the latest email processed for a trip, recorded in its calendar export so the next run searches the Mailbox from there instead of from the beginning.
+The date of the latest email processed for a trip, recorded in its calendar export, with the time of that export, so the next run searches the Mailbox from there instead of from the beginning.
 _Avoid_: Cursor, checkpoint, last sync

@@ -6,7 +6,6 @@ import { makeHome, startServer, textOf, stableIcs } from "./harness.js";
 
 const knownGood = (name: string) => readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
 // DTSTAMP and the bookmark's export time are the export moment, so they cannot be saved.
-const withoutStamp = stableIcs;
 
 const open: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
@@ -29,7 +28,7 @@ describe("trip-agent server", () => {
     expect(result.isError).toBeFalsy();
     const path = join(dir, "sample-japan-trip-2026-12-01.ics");
     expect(textOf(result)).toContain(path);
-    expect(withoutStamp(readFileSync(path, "utf8"))).toBe(knownGood("one-flight.ics"));
+    expect(stableIcs(readFileSync(path, "utf8"))).toBe(knownGood("one-flight.ics"));
   });
 
   it("builds the filename itself, so a hostile trip name cannot become a path", async () => {
