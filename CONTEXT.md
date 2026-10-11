@@ -9,7 +9,7 @@ A journey with dates, a home city, travellers and a set of bookings and legs.
 _Avoid_: Itinerary, plan
 
 **Booking**:
-A single reservation with a vendor and a confirmation reference. One booking can cover several legs, and it carries the cost and any deadlines.
+A single reservation with a vendor and, usually, a confirmation reference. A thing the traveller arranged themselves, such as a dinner, has no reference. One booking can cover several legs, and it carries the cost and any deadlines.
 _Avoid_: Reservation, order
 
 **Leg**:
