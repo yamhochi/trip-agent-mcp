@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCalendar } from "./ics.js";
 import { tripFilePath, writeTripFile } from "./files.js";
+import { findGaps, hasStandingLegs } from "./gaps.js";
 import { openFile } from "./open.js";
 import { access } from "node:fs/promises";
 import { z } from "zod";
@@ -41,6 +42,24 @@ export function createServer(): McpServer {
           content: [{ type: "text", text: `Could not write the calendar file (${message}). Ask the traveller to choose another folder (TRIP_AGENT_DIR).` }],
         };
       }
+    },
+  );
+  server.registerTool(
+    "check_trip",
+    {
+      description:
+        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a flight that does not leave from where the last one arrived) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights. Keeps nothing. Returns each gap in plain English: relay them to the traveller and ask how they want to fix them.",
+      inputSchema: { trip: tripSchema },
+    },
+    async ({ trip }) => {
+      if (!hasStandingLegs(trip)) {
+        return { content: [{ type: "text", text: `Nothing to check in "${trip.name}": every leg is an idea or cancelled. Add the legs the traveller has decided on first.` }] };
+      }
+      const gaps = findGaps(trip);
+      const text = gaps.length
+        ? `${gaps.length === 1 ? "1 gap" : `${gaps.length} gaps`} found in "${trip.name}":\n${gaps.map((g) => `- ${g.message}`).join("\n")}`
+        : `No gaps found in "${trip.name}".`;
+      return { content: [{ type: "text", text }] };
     },
   );
   server.registerTool(

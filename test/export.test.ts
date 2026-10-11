@@ -18,7 +18,7 @@ describe("trip-agent server", () => {
     const server = await startServer();
     open.push(server);
     const { tools } = await server.client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["export_trip", "open_trip_file"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["check_trip", "export_trip", "open_trip_file"]);
   });
 
   it("exports a one-flight trip that matches the known-good calendar file", async () => {
