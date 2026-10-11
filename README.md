@@ -6,6 +6,8 @@ An MCP server that checks a traveller's trip for what is missing and exports it 
 
 ## What it does
 
+For example, you ask your Claude: "Find my booking emails for my Tokyo trip in December and check the trip for gaps." It reads your email, builds the trip, and answers in plain words, something like: "One gap: nothing is booked for the night of 5 December. Your flight home is on the 6th, so you need somewhere to stay that night." Once you say yes, it writes the calendar file, with that gap marked on it until you fix it.
+
 - Your own Claude reads your booking emails with your own email connector and assembles the trip. This server never reads email and keeps no database.
 - It finds gaps by plain rules, not by asking a model: a night with nowhere to stay, a journey that does not connect, a missing return. Gaps show up on your calendar as placeholders until you fix them.
 - It exports the trip as an `.ics` file in a folder on your computer, with stable event identities so importing it again updates events instead of duplicating them. It also adds included breakfasts, hotel shuttles, airport check-in blocks, and free-cancellation and payment deadlines when your emails state them.

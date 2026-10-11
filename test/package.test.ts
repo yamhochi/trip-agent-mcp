@@ -126,6 +126,13 @@ describe("the readme, which npm shows as the package's front page", () => {
     expect(readFileSync(file).subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
   });
 
+  it("opens \"What it does\" with an example question to ask Claude, and the kind of answer it gets", () => {
+    const start = readme.indexOf("## What it does");
+    const section = readme.slice(start, readme.indexOf("\n## ", start + 5));
+    expect(section).toMatch(/\bFor example\b[^\n]*[\u201c"][^\n]*check[^\n]*gaps[^\n]*[\u201d"]/i);
+    expect(section).toMatch(/no lodging|nowhere to stay|unbooked night/i);
+  });
+
   it("points to the sample files, by full address, and the files are in the repository", () => {
     const links = [...readme.matchAll(/\]\(https:\/\/github\.com\/yamhochi\/trip-agent-mcp\/blob\/main\/(docs\/sample\/[^)\s]+)\)/g)].map((m) => m[1]);
     expect(links.sort()).toEqual(["docs/sample/tokyo-in-december-2026-12-01.ics", "docs/sample/tokyo-in-december.trip.json"]);
