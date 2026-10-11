@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NOTE_MAX, scanFreeText } from "./privacy.js";
+import { NOTE_MAX, bookingCodeLeaks, scanFreeText } from "./privacy.js";
 
 const timeZone = z.string().refine(
   (tz) => {
@@ -80,7 +80,7 @@ const leg = z.discriminatedUnion("kind", [flight, stay, activity]);
 
 const source = z
   .object({
-    messageId: z.string().min(1),
+    messageId: z.string().regex(/^<?[^\s<>]+>?$/, { message: "must be the message id as given, with no spaces (angle brackets are fine)" }),
     senderDomain: z.string().regex(/^[A-Za-z0-9.-]+$/, { message: 'must be a bare domain such as "sample-air.test"' }),
     receivedDate: date,
     link: z
@@ -123,7 +123,7 @@ const tripShape = z.object({
 
 // The booking reference is an identifier that the server masks, so it is not scanned; the source is scanned because it ends up in the link.
 export const tripSchema = tripShape.superRefine((trip, ctx) => {
-  for (const { path, message } of scanFreeText(trip, [], new Set(["reference"]))) {
+  for (const { path, message } of [...scanFreeText(trip), ...bookingCodeLeaks(trip)]) {
     ctx.addIssue({ code: "custom", path, message });
   }
 });

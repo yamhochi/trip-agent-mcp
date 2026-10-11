@@ -52,6 +52,39 @@ describe("privacy guard", () => {
     });
   }
 
+  it.each([
+    ["dots", "Card 4111.1111.1111.1111"],
+    ["two spaces", "Card 4111  1111 1111 1111"],
+    ["a line break", "Card 4111\n1111 1111 1111"],
+    ["non-breaking spaces", "Card 4111\u00a01111\u00a01111\u00a01111"],
+    ["mixed separators", "Card 4111 1111-1111.1111"],
+  ])("finds a card number written with %s between the groups", async (_how, text) => {
+    const { result, ics } = await exportTrip(withNote(text));
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatch(/card number/i);
+    expect(ics).toBeUndefined();
+  });
+
+  it.each([
+    ["ETKT", "ETKT 1252345678901", /e-ticket/i],
+    ["tkt no", "tkt no 1252345678901", /e-ticket/i],
+    ["a colon after ticket", "Ticket: 1252345678901", /e-ticket/i],
+    ["FFN", "FFN SA99887766", /loyalty/i],
+    ["SkyMiles", "SkyMiles 1234567890", /loyalty/i],
+    ["Flying Blue", "Flying Blue 123456789", /loyalty/i],
+    ["a membership colon", "Membership: AB123456", /loyalty/i],
+  ])("also rejects %s wording", async (_what, text, message) => {
+    const { result, ics } = await exportTrip(withNote(text));
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatch(message);
+    expect(ics).toBeUndefined();
+  });
+
+  it("does not reject ordinary uses of those words", async () => {
+    const note = "Ticket office opens at 0900, member of the lounge club, ask about the Bonvoy desk";
+    expect((await exportTrip(withNote(note))).result.isError).toBeFalsy();
+  });
+
   it("lets through a digit run that fails the card check, and ordinary wording", async () => {
     const { result } = await exportTrip(withNote("Order 4111 1111 1111 1112, ask for a quiet room, passport control is quick"));
     expect(result.isError).toBeFalsy();
@@ -105,6 +138,10 @@ describe("email links", () => {
     ...oneFlightTrip,
     bookings: [{ ...oneFlightTrip.bookings[0], source }],
   };
+  const withSource = (changes: Record<string, string>) => ({
+    ...sourced,
+    bookings: [{ ...sourced.bookings[0], source: { ...source, ...changes } }],
+  });
 
   it("puts a link back to the email in the event's link field when a source is given", async () => {
     const { result, ics } = await exportTrip(sourced);
@@ -121,7 +158,7 @@ describe("email links", () => {
   it("uses the message link the mail connector supplied, exactly as given, in preference to a search", async () => {
     // Not Gmail: a provider whose links the server could never build itself.
     const link = "https://outlook.sample.test/mail/id/AAMkAD;x,y=z/0?a=1&b=2";
-    const withLink = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const withLink = withSource({ link });
     const { result, ics } = await exportTrip(withLink);
     expect(result.isError).toBeFalsy();
     expect(unfold(ics!).match(/^URL:(.*)$/m)?.[1]).toBe(link);
@@ -137,7 +174,7 @@ describe("email links", () => {
     ["an address with a quote or angle bracket", 'https://outlook.sample.test/a"<b>'],
     ["an address that is far too long", "https://outlook.sample.test/" + "a".repeat(2100)],
   ])("rejects a connector link that is %s, and writes nothing", async (_what, link) => {
-    const bad = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const bad = withSource({ link });
     const { result, ics } = await exportTrip(bad);
     expect(result.isError).toBe(true);
     expect(textOf(result)).toContain("link");
@@ -146,7 +183,7 @@ describe("email links", () => {
 
   it("still runs the privacy guard over a connector link", async () => {
     const link = "https://outlook.sample.test/mail/4111111111111111";
-    const bad = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const bad = withSource({ link });
     const { result, ics } = await exportTrip(bad);
     expect(result.isError).toBe(true);
     expect(textOf(result)).toMatch(/card number/i);
@@ -155,7 +192,7 @@ describe("email links", () => {
 
   it("still folds a long connector link and gives it back whole", async () => {
     const link = "https://outlook.sample.test/mail/id/" + "AbC123_-".repeat(40);
-    const withLink = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, link } }] };
+    const withLink = withSource({ link });
     const { result, ics } = await exportTrip(withLink);
     expect(result.isError).toBeFalsy();
     expect(unfold(ics!).match(/^URL:(.*)$/m)?.[1]).toBe(link);
@@ -167,11 +204,53 @@ describe("email links", () => {
     expect(ics).not.toContain("URL");
   });
 
+  it.each([
+    ["empty", "<>"],
+    ["blank", "  "],
+    ["containing a space, which would widen the search", "abc def@mail.sample-air.test"],
+  ])("rejects a message id that is %s", async (_what, messageId) => {
+    const { result, ics } = await exportTrip(withSource({ messageId }));
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("messageId");
+    expect(ics).toBeUndefined();
+  });
+
   it("rejects a source with a malformed date", async () => {
-    const bad = { ...sourced, bookings: [{ ...sourced.bookings[0], source: { ...source, receivedDate: "yesterday" } }] };
+    const bad = withSource({ receivedDate: "yesterday" });
     const { result } = await exportTrip(bad);
     expect(result.isError).toBe(true);
     expect(textOf(result)).toContain("receivedDate");
+  });
+});
+
+describe("a booking code is only ever shown masked", () => {
+  const withCode = (reference: string, change: (b: Record<string, unknown>) => Record<string, unknown>) => ({
+    ...oneFlightTrip,
+    bookings: [change({ ...oneFlightTrip.bookings[0], reference })],
+  });
+
+  it.each([
+    ["a note", (b: Record<string, unknown>) => ({ ...b, note: "PNR XK29PQ for the desk" })],
+    ["a note in lower case with a dash", (b: Record<string, unknown>) => ({ ...b, note: "pnr xk29-pq" })],
+    ["the vendor", (b: Record<string, unknown>) => ({ ...b, vendor: "Sample Air XK29PQ" })],
+    [
+      "a flight's location",
+      (b: Record<string, unknown>) => {
+        const flight = (b.legs as { departure: object }[])[0];
+        return { ...b, legs: [{ ...flight, departure: { ...flight.departure, location: "Gate XK29PQ" } }] };
+      },
+    ],
+  ])("rejects the full code appearing in %s, saying to remove it", async (_where, change) => {
+    const { result, ics } = await exportTrip(withCode("XK29PQ", change));
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatch(/booking (code|reference)/i);
+    expect(textOf(result)).toMatch(/remove/i);
+    expect(ics).toBeUndefined();
+  });
+
+  it("does not mistake an ordinary short word for a very short booking code", async () => {
+    const { result } = await exportTrip(withCode("AB1", (b) => ({ ...b, note: "Room AB1 is on the second floor" })));
+    expect(result.isError).toBeFalsy();
   });
 });
 

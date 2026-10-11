@@ -41,7 +41,7 @@ The traveller's email account, read by their own Claude through the traveller's 
 _Avoid_: Email source, inbox
 
 **Source**:
-A pointer from a fact back to one email: message id, sender domain and received date. Never the email's content. It becomes the link on a calendar event.
+A pointer from a fact back to one email: message id, sender domain and received date, and the link to that one message when the mail connector supplies it. Never the email's content. It becomes the link on a calendar event.
 _Avoid_: Attachment, copy, reference
 
 **Calendar export**:
