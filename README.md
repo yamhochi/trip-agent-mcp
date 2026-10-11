@@ -2,7 +2,7 @@
 
 An MCP server that checks a traveller's trip for what is missing and exports it as a calendar file on their own computer.
 
-**Status: working, not yet published.** The server checks a trip and exports it as a calendar file; the npm package builds and installs from its tarball, but nothing is on npm yet, so the commands below start working at the first release. The decisions so far are in [docs/design.md](docs/design.md) and [docs/adr/](docs/adr/); the words the project uses are in [CONTEXT.md](CONTEXT.md).
+**Status: version 0.1.0 is released.** It is on [npm](https://www.npmjs.com/package/trip-agent-mcp) and on the [releases page](https://github.com/yamhochi/trip-agent-mcp/releases) as an extension file for Claude Desktop. It has been tried by its maintainer on one real trip, in Claude Desktop, Claude Code and Cursor; it is early software. The decisions so far are in [docs/design.md](docs/design.md) and [docs/adr/](docs/adr/); the words the project uses are in [CONTEXT.md](CONTEXT.md).
 
 ## What it does
 
@@ -20,14 +20,14 @@ An MCP server that checks a traveller's trip for what is missing and exports it 
 
 ## Install
 
-> Nothing is published yet, so `npx -y trip-agent-mcp` works from the first release. The package itself is checked: it installs from its tarball on a clean project and starts over standard input and output. The `claude mcp add` and `codex mcp add` lines below have not yet been run against each client; the end-to-end check (#22) does that. Confirm them against the client's documentation if one fails.
+> Checked on 11 October 2026 with version 0.1.0: the Claude Desktop extension, the `claude mcp add` line in Claude Code, and the config entry in Cursor all install and start. The `codex mcp add` line has **not** been tried. If a line fails for you, check it against your client's documentation and [open an issue](https://github.com/yamhochi/trip-agent-mcp/issues).
 
 **Claude Desktop (macOS and Windows).** Download `trip-agent-mcp-<version>.mcpb` from the latest [release](https://github.com/yamhochi/trip-agent-mcp/releases) and open it (double-click it, or drag it into Claude Desktop). Claude Desktop shows an install dialog:
 
 - **Export folder** (optional) is where the calendar files go. Leave it blank to use `Documents/trip-agent` in your home folder, or pick a folder.
-- Nothing else needs setting up. Claude Desktop runs the extension with its own copy of Node.js, so you do not install it yourself. (Whether that copy is new enough, Node 22 or later, is checked in #22; if the extension will not start, that is the first thing to look at.)
+- Nothing else needs setting up. Claude Desktop runs the extension with its own copy of Node.js, so you do not install it yourself.
 
-There is no release yet, so to try the extension now build it yourself: `npm install && npm run build:mcpb` writes `build/trip-agent-mcp-<version>.mcpb`. It has been checked by unpacking it and starting the server the way the format describes; it has not yet been opened in Claude Desktop itself (that is part of #22).
+To build the extension yourself instead: `npm install && npm run build:mcpb` writes `build/trip-agent-mcp-<version>.mcpb`.
 
 **Claude Code.**
 
@@ -35,7 +35,7 @@ There is no release yet, so to try the extension now build it yourself: `npm ins
 claude mcp add trip-agent -- npx -y trip-agent-mcp
 ```
 
-**Codex.**
+**Codex** (not yet tried).
 
 ```bash
 codex mcp add trip-agent -- npx -y trip-agent-mcp
@@ -54,7 +54,7 @@ codex mcp add trip-agent -- npx -y trip-agent-mcp
 }
 ```
 
-**Before the first release.** To try it from a clone, build it and point your client at the built file instead of npx:
+**From a clone.** To try the code before it is released, build it and point your client at the built file instead of npx:
 
 ```bash
 npm install && npm run build
