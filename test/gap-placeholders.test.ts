@@ -215,6 +215,23 @@ describe("gap placeholders", () => {
     }
   });
 
+  it("gives two breaks between the same two places two placeholders with different ids, in the same order every time", async () => {
+    const s = await session();
+    // In Osaka, the next flight leaves from Tokyo; then again after a second stay in Osaka.
+    const toOsakaFromLondon = flightBooking("SA050", ["London Heathrow (LHR)", "2026-12-01T09:00", "Europe/London"], ["Osaka Kansai (KIX)", "2026-12-02T08:00", "Asia/Tokyo"]);
+    const firstStay = stayBooking("Sample Hotel Osaka", "Osaka", "2026-12-02", "2026-12-04", "OSK222");
+    const tokyoToOsaka = flightBooking("SA100", ["Tokyo Haneda (HND)", "2026-12-04T09:00", "Asia/Tokyo"], ["Osaka Kansai (KIX)", "2026-12-04T10:30", "Asia/Tokyo"]);
+    const secondStay = stayBooking("Sample Hotel Osaka", "Osaka", "2026-12-04", "2026-12-06", "OSK333");
+    const tokyoToLondon = flightBooking("SA200", ["Tokyo Haneda (HND)", "2026-12-06T09:00", "Asia/Tokyo"], ["London Heathrow (LHR)", "2026-12-06T14:00", "Europe/London"]);
+    const twoBreaks = trip(toOsakaFromLondon, firstStay, tokyoToOsaka, secondStay, tokyoToLondon);
+    const found = placeholders((await s.export(twoBreaks)).ics).filter((p) => p.summary.includes("Osaka to Tokyo") || p.summary.includes("Osaka to Tokyo Haneda"));
+    expect(found.map((p) => p.start)).toEqual([";VALUE=DATE:20261204", ";VALUE=DATE:20261206"]);
+    expect(new Set(found.map((p) => p.uid)).size).toBe(2);
+    const again = placeholders((await s.export(twoBreaks)).ics).filter((p) => p.summary.includes("Osaka to Tokyo"));
+    expect(again.map((p) => p.uid)).toEqual(found.map((p) => p.uid));
+    expect(recorded((await s.export(twoBreaks)).ics).filter((r) => r.rule === "broken-chain")).toHaveLength(2);
+  });
+
   it("never copies a leg's event as cancelled because a record names its id", async () => {
     const s = await session();
     const { ics } = await s.export(nightGap);

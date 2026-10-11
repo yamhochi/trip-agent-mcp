@@ -188,7 +188,15 @@ export function findGaps(trip: Trip): Gap[] {
   const legs = standingLegs(trip);
   const final = finalPosition(legs);
   const returnedHome = final !== undefined && samePlace(final.where, trip.homeCity);
-  return [...unbookedNights(legs, trip.startDate, returnedHome), ...brokenChains(legs), ...missingReturn(legs, trip.homeCity)];
+  const gaps = [...unbookedNights(legs, trip.startDate, returnedHome), ...brokenChains(legs), ...missingReturn(legs, trip.homeCity)];
+  // Two gaps made of the same facts (two breaks between the same two places) are told apart by their order in the trip, which a moved date does not change.
+  const seen = new Map<string, number>();
+  return gaps.map((gap) => {
+    const key = JSON.stringify([gap.rule, ...gap.facts]);
+    const n = (seen.get(key) ?? 0) + 1;
+    seen.set(key, n);
+    return n === 1 ? gap : { ...gap, facts: [...gap.facts, String(n)] };
+  });
 }
 
 export function hasStandingLegs(trip: Trip): boolean {

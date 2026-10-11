@@ -386,10 +386,7 @@ export const gapId = (gap: Gap) => uid("gap", gap.rule, ...gap.facts).split("@")
  * gaps and never read back as coverage.
  */
 function gapEvents(trip: Trip, previous: string | undefined, stamp: string) {
-  // Two gaps with one id (two breaks between the same places) are one placeholder.
-  const gaps = findGaps(trip)
-    .map((gap) => ({ gap, id: gapId(gap) }))
-    .filter(({ id }, i, all) => all.findIndex((other) => other.id === id) === i);
+  const gaps = findGaps(trip).map((gap) => ({ gap, id: gapId(gap) }));
   const now = new Set(gaps.map((g) => g.id));
   const gone = readRecord(previous).filter((r) => !now.has(r.id));
   const placeholders = gaps.map(({ gap, id }) => [
