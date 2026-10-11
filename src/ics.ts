@@ -125,7 +125,9 @@ function emailLink(source: NonNullable<Booking["source"]>): string {
   return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
 }
 
-function event(booking: Booking, id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
+const eventStatus = { confirmed: "CONFIRMED", planned: "TENTATIVE", cancelled: "CANCELLED", idea: "CONFIRMED" } as const;
+
+function event(booking: Booking, status: Leg["status"], id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
   return [
     "BEGIN:VEVENT",
     `UID:${id}`,
@@ -136,7 +138,7 @@ function event(booking: Booking, id: string, stamp: string, dtstart: string, dte
     `LOCATION:${escapeText(location)}`,
     `DESCRIPTION:${escapeText(describeBooking(booking))}`,
     ...(booking.source ? [`URL:${booking.source.link ?? emailLink(booking.source)}`] : []),
-    "STATUS:CONFIRMED",
+    `STATUS:${eventStatus[status]}`,
     "END:VEVENT",
   ];
 }
@@ -159,6 +161,7 @@ function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
   const { departure, arrival } = leg;
   return event(
     booking,
+    leg.status,
     legId(booking, "flight", leg.flightNumber, leg.departure.localTime.slice(0, 10)),
     stamp,
     zoned("DTSTART", departure.timeZone, departure.localTime),
@@ -171,6 +174,7 @@ function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
 function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
   return event(
     booking,
+    leg.status,
     legId(booking, "stay", leg.property, leg.checkIn),
     stamp,
     allDay("DTSTART", leg.checkIn),
@@ -183,6 +187,7 @@ function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
 function activityEvent(booking: Booking, leg: Activity, stamp: string): string[] {
   return event(
     booking,
+    leg.status,
     legId(booking, "activity", leg.name, leg.start.slice(0, 10)),
     stamp,
     zoned("DTSTART", leg.timeZone, leg.start),
@@ -213,6 +218,8 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
   const zones = new Map<string, string[]>();
   for (const b of trip.bookings) {
     for (const leg of b.legs) {
+      // An idea is never exported, and takes no time zone definition with it.
+      if (leg.status === "idea") continue;
       for (const end of zonedTimes(leg)) {
         if (!zones.has(end.timeZone)) zones.set(end.timeZone, vtimezone(end.timeZone, end.localTime));
       }
