@@ -126,6 +126,12 @@ describe("the readme, which npm shows as the package's front page", () => {
     expect(readFileSync(file).subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
   });
 
+  it("points to the sample files, by full address, and the files are in the repository", () => {
+    const links = [...readme.matchAll(/\]\(https:\/\/github\.com\/yamhochi\/trip-agent-mcp\/blob\/main\/(docs\/sample\/[^)\s]+)\)/g)].map((m) => m[1]);
+    expect(links.sort()).toEqual(["docs/sample/tokyo-in-december-2026-12-01.ics", "docs/sample/tokyo-in-december.trip.json"]);
+    for (const link of links) expect(existsSync(join(root, link)), link).toBe(true);
+  });
+
   it("gives example prompts to ask Claude: build and check a trip, fix a gap, export, update, and paste instead of an email connector", () => {
     const start = readme.indexOf("## Try it");
     expect(start).toBeGreaterThan(0);

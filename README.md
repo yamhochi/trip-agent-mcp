@@ -17,6 +17,8 @@ An MCP server that checks a traveller's trip for what is missing and exports it 
 
 An invented trip, exported by Trip Agent and imported into Apple Calendar. The hotel's included breakfasts, the airport shuttle, the check-in times and the free-cancellation date are there because the booking emails said so. The "Missing:" event marks the one night with nowhere to stay; it goes away once you fix the gap.
 
+**Try the same file yourself.** Download the [sample calendar file](https://github.com/yamhochi/trip-agent-mcp/blob/main/docs/sample/tokyo-in-december-2026-12-01.ics) (open it, then use the download icon on the file's page) and import it into a spare calendar to see exactly this. The [trip](https://github.com/yamhochi/trip-agent-mcp/blob/main/docs/sample/tokyo-in-december.trip.json) it was made from is there too: that is the plain description of a trip that your Claude hands to the server. The sample is rebuilt and checked against the server in the tests, so it always matches what the server writes.
+
 ## What you need
 
 - A client that can run a local MCP server (see below).
