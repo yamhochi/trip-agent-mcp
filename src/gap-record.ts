@@ -28,13 +28,21 @@ export function readRecord(ics: string | undefined): RecordedGap[] {
   const prefix = `${PROPERTY};VERSION=${VERSION}:`;
   if (!line || !line.startsWith(prefix)) return [];
   try {
-    return z.array(entry).parse(JSON.parse(decodeURIComponent(line.slice(prefix.length))));
+    const raw = JSON.parse(decodeURIComponent(line.slice(prefix.length)));
+    // One damaged entry loses only itself.
+    return Array.isArray(raw) ? raw.flatMap((r) => (entry.safeParse(r).success ? [entry.parse(r)] : [])) : [];
   } catch {
     return [];
   }
 }
 
-/** The earlier file's own event for each recorded id, set to cancelled: importing a file never removes an event, so a fixed gap has to be written out as one. */
+const KEPT = ["UID", "DTSTART", "DTEND", "SUMMARY", "DESCRIPTION"];
+
+/**
+ * The earlier file's own placeholder for each recorded id, written out cancelled: importing a file never removes
+ * an event, so a fixed gap has to be written out as one. Only a gap placeholder is ever copied, and only its
+ * known lines, so a hand-edited record or file cannot make the server copy a leg's event or anything else.
+ */
 export function cancelledEvents(ics: string, ids: string[], stamp: string): string[][] {
   const events = unfold(ics)
     .split(/\r?\n/)
@@ -45,8 +53,8 @@ export function cancelledEvents(ics: string, ids: string[], stamp: string): stri
     }, []);
   return ids.flatMap((id) => {
     const found = events.find((lines) => lines.includes(`UID:${id}@trip-agent-mcp`));
-    if (!found) return [];
-    const body = found.filter((l) => l !== "END:VEVENT").map((l) => (l.startsWith("STATUS:") ? "STATUS:CANCELLED" : l.startsWith("DTSTAMP:") ? `DTSTAMP:${stamp}` : l));
-    return [["BEGIN:VEVENT", ...body, "END:VEVENT"]];
+    if (!found?.some((l) => l.startsWith("SUMMARY:Missing:"))) return [];
+    const kept = found.filter((l) => KEPT.some((name) => l.startsWith(`${name}:`) || l.startsWith(`${name};`)));
+    return [["BEGIN:VEVENT", ...kept.slice(0, 1), `DTSTAMP:${stamp}`, ...kept.slice(1), "STATUS:CANCELLED", "END:VEVENT"]];
   });
 }

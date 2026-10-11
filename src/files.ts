@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -26,10 +26,15 @@ export function tripFilePath(name: string, startDate: string): string {
   return join(exportFolder(), tripFilename(name, startDate));
 }
 
+const MAX_READ_BYTES = 5_000_000;
+
 /** The file this server last exported for a trip, or nothing when there is none (or it cannot be read). */
 export async function readTripFile(name: string, startDate: string): Promise<string | undefined> {
   try {
-    return await readFile(tripFilePath(name, startDate), "utf8");
+    const path = tripFilePath(name, startDate);
+    // A calendar file for one trip is small; refuse to read anything much larger.
+    if ((await stat(path)).size > MAX_READ_BYTES) return undefined;
+    return await readFile(path, "utf8");
   } catch {
     return undefined;
   }

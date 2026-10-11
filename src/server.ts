@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCalendar, gapId } from "./ics.js";
 import { readTripFile, tripFilePath, writeTripFile } from "./files.js";
-import { coveringLeg, findGaps, hasStandingLegs } from "./gaps.js";
+import { coveringLeg, findGaps, hasStandingLegs, type RecordedGap } from "./gaps.js";
 import { readRecord } from "./gap-record.js";
 import { openFile } from "./open.js";
 import { access } from "node:fs/promises";
@@ -9,10 +9,11 @@ import { z } from "zod";
 import { date, tripSchema } from "./schema.js";
 
 /** An earlier gap in the traveller's words. */
-function describeRecorded(r: { rule: string; start: string; from?: string; to?: string }): string {
+function describeRecorded(r: RecordedGap): string {
+  // Only the kind and the date: the places in a record came from a file, which anyone can edit, and are used for matching alone.
   if (r.rule === "unbooked-night") return `The unbooked night of ${r.start}`;
-  if (r.rule === "missing-return") return `The missing return to ${r.to ?? "home"}`;
-  return `The broken chain between ${r.from} and ${r.to}`;
+  if (r.rule === "missing-return") return `The missing return home, noted on ${r.start}`;
+  return `The broken location chain noted on ${r.start}`;
 }
 
 export function createServer(): McpServer {
@@ -47,7 +48,7 @@ export function createServer(): McpServer {
         const notice = similar.length
           ? ` A file for a similarly named trip with a different start date already exists in that folder (${similar.join(", ")}). If the trip moved, the old file may now be stale: ask the traveller before suggesting they delete it.`
           : "";
-        return { content: [{ type: "text", text: `Exported "${trip.name}" to ${path}${notice ? "." : ""}${notice}${gapNote}` }] };
+        return { content: [{ type: "text", text: `Exported "${trip.name}" to ${path}${notice || gapNote ? "." : ""}${notice}${gapNote}` }] };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return {

@@ -377,16 +377,19 @@ function zonedTimes(leg: Leg): { timeZone: string; localTime: string }[] {
   }
 }
 
-/**
- * A tentative all-day placeholder for each gap, and for each gap an earlier export recorded that is gone,
- * the earlier file's own event written out cancelled. A placeholder is not a leg: it is made from the gaps
- * and never read back as coverage.
- */
 /** A gap's id, from its kind and the facts that identify it (the night or the two places), never a time. */
 export const gapId = (gap: Gap) => uid("gap", gap.rule, ...gap.facts).split("@")[0];
 
+/**
+ * A tentative all-day placeholder for each gap, and for each gap an earlier export recorded that is gone,
+ * the earlier file's own placeholder written out cancelled. A placeholder is not a leg: it is made from the
+ * gaps and never read back as coverage.
+ */
 function gapEvents(trip: Trip, previous: string | undefined, stamp: string) {
-  const gaps = findGaps(trip).map((gap) => ({ gap, id: gapId(gap) }));
+  // Two gaps with one id (two breaks between the same places) are one placeholder.
+  const gaps = findGaps(trip)
+    .map((gap) => ({ gap, id: gapId(gap) }))
+    .filter(({ id }, i, all) => all.findIndex((other) => other.id === id) === i);
   const now = new Set(gaps.map((g) => g.id));
   const gone = readRecord(previous).filter((r) => !now.has(r.id));
   const placeholders = gaps.map(({ gap, id }) => [
@@ -401,7 +404,8 @@ function gapEvents(trip: Trip, previous: string | undefined, stamp: string) {
     "END:VEVENT",
   ]);
   const record: RecordedGap[] = gaps.map(({ gap, id }) => ({ rule: gap.rule, id, start: gap.start, ...(gap.from ? { from: gap.from } : {}), ...(gap.to ? { to: gap.to } : {}) }));
-  return { events: [...placeholders, ...(previous ? cancelledEvents(previous, gone.map((g) => g.id), stamp) : [])], record, added: placeholders.length, cancelled: gone.length };
+  const cancelled = previous ? cancelledEvents(previous, gone.map((g) => g.id), stamp) : [];
+  return { events: [...placeholders, ...cancelled], record, added: placeholders.length, cancelled: cancelled.length };
 }
 
 export interface BuiltCalendar {
