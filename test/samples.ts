@@ -11,6 +11,7 @@ export const oneFlightTrip = {
         {
           kind: "travel",
           mode: "flight",
+          international: true,
           status: "confirmed",
           identifier: "JL044",
           from: { location: "London Heathrow (LHR)", localTime: "2026-12-01T11:30", timeZone: "Europe/London" },

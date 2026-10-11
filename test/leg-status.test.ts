@@ -77,7 +77,8 @@ describe("confirmed, planned and cancelled legs", () => {
     expect(result.isError).toBeFalsy();
     expect(ics).not.toContain("Sample Ramen");
     expect(ics).not.toContain("Pacific/Auckland");
-    expect(ics!.match(/BEGIN:VEVENT/g)).toHaveLength(3);
+    // The flight and its check-in block, the planned hotel and the cancelled dinner; the idea is left out.
+    expect(ics!.match(/BEGIN:VEVENT/g)).toHaveLength(4);
   });
 
   it("writes nothing, and says why, when every leg is an idea", async () => {

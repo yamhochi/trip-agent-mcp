@@ -31,4 +31,15 @@ LOCATION:London Heathrow (LHR)
 DESCRIPTION:Sample Air\; Test booking\, code ending 23
 STATUS:CONFIRMED
 END:VEVENT
+BEGIN:VEVENT
+UID:5d80c3396a92b281ba8d789c67a196c8@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Europe/London:20261201T083000
+DTEND;TZID=Europe/London:20261201T113000
+SUMMARY:Airport check-in: Flight JL044
+LOCATION:London Heathrow (LHR)
+DESCRIPTION:Approximate: check-in is assumed to open 3 hours before an inte
+ rnational departure.\nSample Air\; Test booking\, code ending 23
+STATUS:TENTATIVE
+END:VEVENT
 END:VCALENDAR

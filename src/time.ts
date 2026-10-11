@@ -30,3 +30,8 @@ export function instantOf(localTime: string, timeZone: string): number {
   const { offset } = zoneAt(wall - guess * 60000, timeZone);
   return wall - offset * 60000;
 }
+
+/** A wall-clock time moved by whole minutes, read straight off the clock (no daylight-saving adjustment). */
+export function shiftLocal(localTime: string, minutes: number): string {
+  return new Date(wallClockAsUtc(localTime) + minutes * 60000).toISOString().slice(0, 16);
+}

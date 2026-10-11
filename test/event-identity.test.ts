@@ -82,9 +82,10 @@ describe("event identity", () => {
     const e = await exporter();
     const first = idsBySummary(await e.export(mixedTrip));
     const again = idsBySummary(await e.export(mixedTrip));
-    expect(first.size).toBe(3);
+    // The flight, its airport check-in block, the stay and the dinner.
+    expect(first.size).toBe(4);
     expect(again).toEqual(first);
-    expect(new Set(first.values()).size).toBe(3);
+    expect(new Set(first.values()).size).toBe(4);
   });
 
   it("keeps a flight's id when its time changes, and changes it with the flight number", async () => {
