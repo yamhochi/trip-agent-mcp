@@ -20,11 +20,12 @@ const flightBooking = (flightNumber: string, from: [string, string, string], to:
   vendor: "Sample Air",
   legs: [
     {
-      kind: "flight",
+      kind: "travel",
+      mode: "flight",
       status,
-      flightNumber,
-      departure: { location: from[0], localTime: from[1], timeZone: from[2] },
-      arrival: { location: to[0], localTime: to[1], timeZone: to[2] },
+      identifier: flightNumber,
+      from: { location: from[0], localTime: from[1], timeZone: from[2] },
+      to: { location: to[0], localTime: to[1], timeZone: to[2] },
     },
   ],
 });
@@ -85,15 +86,18 @@ describe("check_trip", () => {
       const osakaStay = stayBooking("Sample Hotel Osaka", "Osaka", "2026-12-01", "2026-12-04");
       const { text } = await checkTrip(trip(toOsaka, osakaStay, fromTokyo));
       expect(text).toContain("Broken location chain");
-      expect(text).toContain("Osaka Kansai (KIX)");
+      expect(text).toContain("Sample Hotel Osaka");
       expect(text).toContain("Tokyo Haneda (HND)");
       expect(text).not.toContain("Unbooked night");
     });
 
-    it("accepts a flight home from a city the traveller stayed in on the way", async () => {
+    it("still reports a broken chain when the traveller has a stay in the city the next flight leaves from", async () => {
+      // A stay in the departure city no longer explains how the traveller got there: nothing travels Osaka to Tokyo.
       const tokyoStay = stayBooking("Sample Hotel Tokyo", "Tokyo", "2026-12-01", "2026-12-04");
       const { text } = await checkTrip(trip(toOsaka, tokyoStay, fromTokyo));
-      expect(text).toBe('No gaps found in "Sample Japan Trip".');
+      expect(text).toContain("Broken location chain");
+      expect(text).toContain("Osaka Kansai (KIX)");
+      expect(text).toContain("Sample Hotel Tokyo");
     });
 
     it("ignores a cancelled flight in the chain", async () => {

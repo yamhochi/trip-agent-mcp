@@ -39,12 +39,21 @@ const endpoint = z.object({
   timeZone,
 });
 
-const flight = z.object({
-  kind: z.literal("flight"),
+const mode = z
+  .enum(["flight", "train", "ferry", "bus", "car", "other"])
+  .describe("How the traveller moves: flight, train, ferry, bus, car, or other. A flight is a travel leg with mode flight.");
+
+const travel = z.object({
+  kind: z.literal("travel"),
   status,
-  flightNumber: z.string().min(1),
-  departure: endpoint,
-  arrival: endpoint,
+  mode,
+  identifier: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("The flight number, the train number, or any number that names this journey. Leave it out when there is none."),
+  from: endpoint.describe("Where and when it leaves, with the place, the local time and the named time zone there."),
+  to: endpoint.describe("Where and when it arrives, with the place, the local time and the named time zone there."),
 });
 
 export const date = z
@@ -82,7 +91,7 @@ const activity = z
   })
   .refine((a) => a.end > a.start, { path: ["end"], message: "must be after start" });
 
-const leg = z.discriminatedUnion("kind", [flight, stay, activity]);
+const leg = z.discriminatedUnion("kind", [travel, stay, activity]);
 
 const source = z
   .object({
@@ -135,7 +144,7 @@ export const tripSchema = tripShape.superRefine((trip, ctx) => {
 });
 
 export type Trip = z.infer<typeof tripSchema>;
-export type Flight = z.infer<typeof flight>;
+export type Travel = z.infer<typeof travel>;
 export type Stay = z.infer<typeof stay>;
 export type Activity = z.infer<typeof activity>;
 export type Leg = z.infer<typeof leg>;

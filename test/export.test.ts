@@ -64,10 +64,10 @@ describe("trip-agent server", () => {
     const server = await startServer({ TRIP_AGENT_DIR: dir });
     open.push(server);
     const trip = structuredClone(oneFlightTrip);
-    trip.bookings[0].legs[0].arrival.timeZone = "JST";
+    trip.bookings[0].legs[0].to.timeZone = "JST";
     const result = await server.client.callTool({ name: "export_trip", arguments: { trip } });
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain("arrival");
+    expect(textOf(result)).toContain("to.timeZone");
     expect(textOf(result)).toContain("timeZone");
     expect(textOf(result)).toContain("IANA");
     expect(existsSync(dir)).toBe(false);

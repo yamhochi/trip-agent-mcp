@@ -1,32 +1,8 @@
 import { createHash } from "node:crypto";
-import type { Activity, Flight, Leg, Stay, Trip } from "./schema.js";
+import type { Activity, Leg, Stay, Travel, Trip } from "./schema.js";
+import { wallClockAsUtc, zoneAt } from "./time.js";
 
 const CRLF = "\r\n";
-
-/** Offset in minutes of `timeZone` from UTC at the given instant, plus its short name. */
-function zoneAt(instant: number, timeZone: string): { offset: number; name: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    timeZoneName: "short",
-  }).formatToParts(new Date(instant));
-  const get = (type: string) => parts.find((p) => p.type === type)!.value;
-  const asUtc = Date.UTC(+get("year"), +get("month") - 1, +get("day"), +get("hour"), +get("minute"), +get("second"));
-  return { offset: Math.round((asUtc - Math.floor(instant / 1000) * 1000) / 60000), name: get("timeZoneName") };
-}
-
-function wallClockAsUtc(localTime: string): number {
-  const [d, t] = localTime.split("T");
-  const [y, mo, da] = d.split("-").map(Number);
-  const [h, mi] = t.split(":").map(Number);
-  return Date.UTC(y, mo - 1, da, h, mi);
-}
 
 function formatOffset(minutes: number): string {
   const sign = minutes < 0 ? "-" : "+";
@@ -102,14 +78,14 @@ const tidy = (text: string) => text.normalize("NFKC").trim().replace(/\s+/g, " "
 
 /**
  * A leg's identity is a fingerprint of facts that do not change when a booking is amended: the
- * booking reference plus the flight number or property, never a time. Claude re-reads the emails
- * each time and may write the same fact slightly differently ("abc-123", "JL 044", extra spaces),
- * so each fact is tidied first: references and flight numbers keep only letters and digits, names
- * ignore case and spacing. A leg with no reference falls back to its kind, name and original date,
- * so moving it to another day makes a new event.
+ * booking reference plus the mode and number of a journey, the property of a stay or the name of an
+ * activity, never a time. Claude re-reads the emails each time and may write the same fact slightly
+ * differently ("abc-123", "JL 044", extra spaces), so each fact is tidied first: references and
+ * journey numbers keep only letters and digits, names ignore case and spacing. A leg with no
+ * reference falls back to its kind, its name and its original date, so moving it to another day
+ * makes a new event.
  */
-function legId(booking: Booking, kind: Leg["kind"], name: string, date: string): string {
-  const fact = kind === "flight" ? squash(name) : tidy(name);
+function legId(booking: Booking, kind: string, fact: string, date: string): string {
   if (!booking.reference) return uid("unbooked", kind, fact, date);
   return uid("booked", squash(booking.reference) || tidy(booking.reference), kind, fact);
 }
@@ -156,8 +132,8 @@ const allDay = (name: string, date: string) => `${name};VALUE=DATE:${date.replac
 
 function legEvent(booking: Booking, leg: Leg, stamp: string): string[] {
   switch (leg.kind) {
-    case "flight":
-      return flightEvent(booking, leg, stamp);
+    case "travel":
+      return travelEvent(booking, leg, stamp);
     case "stay":
       return stayEvent(booking, leg, stamp);
     case "activity":
@@ -165,17 +141,21 @@ function legEvent(booking: Booking, leg: Leg, stamp: string): string[] {
   }
 }
 
-function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
-  const { departure, arrival } = leg;
+const modeLabel = { flight: "Flight", train: "Train", ferry: "Ferry", bus: "Bus", car: "Car", other: "Travel" } as const;
+
+function travelEvent(booking: Booking, leg: Travel, stamp: string): string[] {
+  const { from, to } = leg;
+  // A journey is named by its number when it has one, and by where it goes when it has not.
+  const fact = leg.identifier ? squash(leg.identifier) : `${tidy(from.location)}>${tidy(to.location)}`;
   return event(
     booking,
     leg.status,
-    legId(booking, "flight", leg.flightNumber, leg.departure.localTime.slice(0, 10)),
+    legId(booking, leg.mode, fact, from.localTime.slice(0, 10)),
     stamp,
-    zoned("DTSTART", departure.timeZone, departure.localTime),
-    zoned("DTEND", arrival.timeZone, arrival.localTime),
-    `Flight ${leg.flightNumber}: ${departure.location} to ${arrival.location}`,
-    departure.location,
+    zoned("DTSTART", from.timeZone, from.localTime),
+    zoned("DTEND", to.timeZone, to.localTime),
+    `${modeLabel[leg.mode]}${leg.identifier ? ` ${leg.identifier}` : ""}: ${from.location} to ${to.location}`,
+    from.location,
   );
 }
 
@@ -183,7 +163,7 @@ function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
   return event(
     booking,
     leg.status,
-    legId(booking, "stay", leg.property, leg.checkIn),
+    legId(booking, "stay", tidy(leg.property), leg.checkIn),
     stamp,
     allDay("DTSTART", leg.checkIn),
     allDay("DTEND", leg.checkOut),
@@ -196,7 +176,7 @@ function activityEvent(booking: Booking, leg: Activity, stamp: string): string[]
   return event(
     booking,
     leg.status,
-    legId(booking, "activity", leg.name, leg.start.slice(0, 10)),
+    legId(booking, "activity", tidy(leg.name), leg.start.slice(0, 10)),
     stamp,
     zoned("DTSTART", leg.timeZone, leg.start),
     zoned("DTEND", leg.timeZone, leg.end),
@@ -208,8 +188,8 @@ function activityEvent(booking: Booking, leg: Activity, stamp: string): string[]
 /** Every zoned time in the leg, so each zone used gets a VTIMEZONE. */
 function zonedTimes(leg: Leg): { timeZone: string; localTime: string }[] {
   switch (leg.kind) {
-    case "flight":
-      return [leg.departure, leg.arrival];
+    case "travel":
+      return [leg.from, leg.to];
     case "stay":
       return [];
     case "activity":
