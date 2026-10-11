@@ -41,10 +41,23 @@ A local MCP server. The traveller's own Claude reads their mailbox through the t
   - *Date filter:* works, with a start date and an end date. The results matched the dates.
   - *Message link:* the connector's fetch-message tool takes the message id and returns a view link that opens that one message directly, not a search. The link contains a `|` (`...#all/thread-f:<id>|msg-f:<id>`) and an `authuser=<email address>` parameter. The link check used to reject `|`, so a real Gmail link was refused; it is now written as `%7C` (#38). The `authuser` address is kept on purpose, see item 10. The `%7C` form was opened in a browser and lands on the same message. Whether the fallback `rfc822msgid:` search finds a message from Gmail's `msg-f:` id is untested.
   - *No connector:* with Gmail connected but switched off for the chat, Claude said it could not read the mailbox, said what was needed, did not invent a trip, and offered to work from pasted booking details, as item 12 expects. A connector that was never installed was not tried.
+- **Importing the file twice in real calendar apps (checked 2026-10-11, issue #12).** Apple Calendar on macOS and Google Calendar in a browser, each into a throwaway calendar. A trip of a flight, its airport check-in block, a hotel stay and a dinner was exported and imported; then the flight was moved, the dinner was cancelled, and the new file was imported into the same calendar. Outlook was not tested.
+
+  | | Apple Calendar | Google Calendar |
+  |---|---|---|
+  | Second import with the same ids | Updates in place, no duplicates (flight, check-in block and stay) | Updates in place, no duplicates |
+  | Cancelled event | Kept, struck through | Removed from the calendar |
+  | Unknown `X-` property line (stood in for the bookmark) | No error, ignored | No error, ignored |
+  | Importing the older file again | Not tried | Ignored ("0 of 4 imported, already imported"); the older times did not overwrite the newer ones |
+
+  What this means for the design: matching events by id and exporting a cancelled event for anything that has gone both work as specified, so the gap placeholder design (#16) can go ahead. A fixed gap's placeholder disappears in Google and shows struck through in Apple; neither leaves a normal-looking stale event. The bookmark property is safe to add in both apps, but the real property has not been imported, only a stand-in line.
+
+  Two things seen that are not file problems. Apple Calendar shows every event in its selected display time zone, so events in other zones look shifted until the zone is switched (with the right zone, the times were correct); Google showed the times correctly straight away. And an export where only the departure is moved gives an odd flight duration, because the arrival keeps its own zone; the server writes what it is given.
+
+  Not checked: Outlook; Apple Calendar on iPhone; Google Calendar's mobile app; why Google ignored the older file (the file's `DTSTAMP` and `SEQUENCE` were not compared).
 
 ## To verify early
 
-- Calendar apps ignore the custom bookmark property, honour cancelled events and match events by id when a file is imported again.
 - Claude Desktop can write to `Documents` without extra permission on Windows, and with a redirected Documents folder (iCloud, OneDrive). Checked on macOS only; see **Verified**.
 - The install commands for each client.
 
