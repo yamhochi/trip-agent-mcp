@@ -33,11 +33,19 @@ A local MCP server. The traveller's own Claude reads their mailbox through the t
 14. **Testing.** One seam: the tool interface. Sample trips go in, and the results and known-good `.ics` files are checked. A manual test imports the file into a real calendar app twice and looks for duplicates.
 15. **Reminders about deadlines** are gentle guidance in the instructions, not a rule or a tool.
 
+## Verified
+
+- **Writing to `Documents` on macOS (checked 2026-10-11, issue #7).** Claude Desktop launched the server (node 24 via nvm, through Claude's `disclaimer` helper) and `export_trip` created `~/Documents/trip-agent/` and wrote the `.ics` with no macOS prompt and no error, even with Documents switched off for that `node` in Privacy & Security → Files & Folders. One machine and one Node install: macOS did not enforce the denial and we do not know why (the Node setup on that machine may have been unusual), so a fresh machine could behave differently. Not checked: a Documents folder redirected to iCloud (none available), and Windows including OneDrive.
+- **Side effects seen on the same machine.** Resetting the Documents permission (`tccutil reset SystemPolicyDocumentsFolder`) made other apps ask again, and a denied `node` made a different MCP server time out and disconnect, with no clear error.
+- **The Gmail connector (checked 2026-10-11, issue #7).** One connector, Gmail in Claude Desktop; Outlook and others not checked.
+  - *Date filter:* works, with a start date and an end date. The results matched the dates.
+  - *Message link:* the connector's fetch-message tool takes the message id and returns a view link that opens that one message directly, not a search. The link contains a `|` (`...#all/thread-f:<id>|msg-f:<id>`) and an `authuser=<email address>` parameter. The link check in `src/schema.ts` rejects `|`, so a real Gmail link is refused today, and the address would be written into the file; both are tracked in #38. Whether the `%7C`-encoded form still opens the same message, and whether the fallback `rfc822msgid:` search finds a message from Gmail's `msg-f:` id, are untested.
+  - *No connector:* with Gmail connected but switched off for the chat, Claude said it could not read the mailbox, said what was needed, did not invent a trip, and offered to work from pasted booking details, as item 12 expects. A connector that was never installed was not tried.
+
 ## To verify early
 
 - Calendar apps ignore the custom bookmark property, honour cancelled events and match events by id when a file is imported again.
-- Claude Desktop can write to `Documents` without extra permission, including with a redirected Documents folder.
-- The traveller's mail connector offers a date filter and a message link.
+- Claude Desktop can write to `Documents` without extra permission on Windows, and with a redirected Documents folder (iCloud, OneDrive). Checked on macOS only; see **Verified**.
 - The install commands for each client.
 
 ## Not in version 1
