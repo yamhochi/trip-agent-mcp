@@ -3,9 +3,14 @@ import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
-/** The export folder: $TRIP_AGENT_DIR, or Documents/trip-agent in the home folder. */
+/**
+ * The export folder: $TRIP_AGENT_DIR, or Documents/trip-agent in the home folder. A host that fills the variable in
+ * from a setting leaves the placeholder text (`${user_config.export_folder}`) when the traveller left the setting
+ * blank; that is "not set", never a folder name.
+ */
 export function exportFolder(): string {
-  return process.env.TRIP_AGENT_DIR || join(homedir(), "Documents", "trip-agent");
+  const chosen = process.env.TRIP_AGENT_DIR?.trim();
+  return chosen && !/\$\{[^}]*\}/.test(chosen) ? chosen : join(homedir(), "Documents", "trip-agent");
 }
 
 /** Built by the server alone from the trip name and start date; the model never supplies a path. */

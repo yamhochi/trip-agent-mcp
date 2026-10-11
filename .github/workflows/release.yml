@@ -1,4 +1,5 @@
-# Builds and tests the package when a version tag is pushed (or when started by hand), and dry-run publishes it.
+# Builds and tests the package when a version tag is pushed (or when started by hand), dry-run publishes it, and
+# builds the Claude Desktop extension (.mcpb), which is attached to the GitHub release on a tag.
 # The real publish needs the maintainer's npm credentials, so it stays off until the repository variable
 # PUBLISH_TO_NPM is set to "true" and a secret NPM_TOKEN exists.
 name: Release
@@ -27,6 +28,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Check that manifest.json and package.json have the same version
+        run: |
+          package="$(node -p "require('./package.json').version")"
+          manifest="$(node -p "require('./manifest.json').version")"
+          if [ "${package}" != "${manifest}" ]; then
+            echo "manifest.json says ${manifest} but package.json says ${package}" >&2
+            exit 1
+          fi
       - name: Check that the tag matches the version in package.json
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -39,6 +48,37 @@ jobs:
         run: npm pack --dry-run
       - name: Dry-run publish
         run: npm publish --dry-run --access public
+
+  bundle:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the Claude Desktop extension (.mcpb)
+        run: npm run build:mcpb
+      - name: Keep the bundle as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trip-agent-mcpb
+          path: build/*.mcpb
+          if-no-files-found: error
+      - name: Attach the bundle to the GitHub release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; *) pre="" ;; esac
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes $pre
+          fi
+          gh release upload "$GITHUB_REF_NAME" build/*.mcpb --clobber
 
   publish:
     needs: verify
