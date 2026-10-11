@@ -1,0 +1,69 @@
+{
+  "name": "Tokyo in December",
+  "startDate": "2026-12-01",
+  "homeCity": "London",
+  "bookings": [
+    {
+      "vendor": "Kestrel Air",
+      "reference": "KQ7F2M",
+      "legs": [
+        {
+          "kind": "travel",
+          "mode": "flight",
+          "international": true,
+          "status": "confirmed",
+          "identifier": "KA 211",
+          "from": { "location": "London Heathrow (LHR)", "localTime": "2026-12-01T11:30", "timeZone": "Europe/London" },
+          "to": { "location": "Tokyo Haneda (HND)", "localTime": "2026-12-02T07:35", "timeZone": "Asia/Tokyo" }
+        }
+      ]
+    },
+    {
+      "vendor": "Hotel Kiri Tokyo",
+      "reference": "HK48213",
+      "deadlines": { "cancellationBy": "2026-12-01" },
+      "legs": [
+        {
+          "kind": "stay",
+          "status": "confirmed",
+          "property": "Hotel Kiri Tokyo",
+          "location": "Tokyo",
+          "checkIn": "2026-12-02",
+          "checkOut": "2026-12-05",
+          "breakfastIncluded": true,
+          "airportTransit": true,
+          "timeZone": "Asia/Tokyo"
+        }
+      ]
+    },
+    {
+      "vendor": "Sushi Yamabuki",
+      "legs": [
+        {
+          "kind": "activity",
+          "status": "planned",
+          "name": "Dinner at Sushi Yamabuki",
+          "location": "Ginza, Tokyo",
+          "start": "2026-12-03T19:00",
+          "end": "2026-12-03T21:00",
+          "timeZone": "Asia/Tokyo"
+        }
+      ]
+    },
+    {
+      "vendor": "Kestrel Air",
+      "reference": "KQ9T4P",
+      "legs": [
+        {
+          "kind": "travel",
+          "mode": "flight",
+          "international": true,
+          "status": "confirmed",
+          "identifier": "KA 212",
+          "from": { "location": "Tokyo Haneda (HND)", "localTime": "2026-12-06T11:00", "timeZone": "Asia/Tokyo" },
+          "to": { "location": "London Heathrow (LHR)", "localTime": "2026-12-06T15:40", "timeZone": "Europe/London" }
+        }
+      ]
+    }
+  ]
+}

@@ -116,6 +116,36 @@ describe("the readme, which npm shows as the package's front page", () => {
     expect(relative).toEqual([]);
   });
 
+  it("shows the exported trip in a calendar: an image with a description, stored in the repository and linked by full address, of a sensible size", () => {
+    const image = readme.match(/!\[([^\]]+)\]\((https:\/\/raw\.githubusercontent\.com\/yamhochi\/trip-agent-mcp\/main\/(docs\/images\/[^)\s]+))\)/);
+    expect(image, "an image linked by its raw GitHub address").not.toBeNull();
+    expect(image![1].length).toBeGreaterThan(20);
+    const file = join(root, image![3]);
+    expect(existsSync(file)).toBe(true);
+    expect(statSync(file).size).toBeLessThan(1_000_000);
+    expect(readFileSync(file).subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  });
+
+  it("opens \"What it does\" with an example question to ask Claude, and the kind of answer it gets", () => {
+    const start = readme.indexOf("## What it does");
+    const section = readme.slice(start, readme.indexOf("\n## ", start + 5));
+    expect(section).toMatch(/\bFor example\b[^\n]*[\u201c"][^\n]*check[^\n]*gaps[^\n]*[\u201d"]/i);
+    expect(section).toMatch(/no lodging|nowhere to stay|unbooked night/i);
+  });
+
+  it("points to the sample files, by full address, and the files are in the repository", () => {
+    const links = [...readme.matchAll(/\]\(https:\/\/github\.com\/yamhochi\/trip-agent-mcp\/blob\/main\/(docs\/sample\/[^)\s]+)\)/g)].map((m) => m[1]);
+    expect(links.sort()).toEqual(["docs/sample/tokyo-in-december-2026-12-01.ics", "docs/sample/tokyo-in-december.trip.json"]);
+    for (const link of links) expect(existsSync(join(root, link)), link).toBe(true);
+  });
+
+  it("gives example prompts to ask Claude: build and check a trip, fix a gap, export, update, and paste instead of an email connector", () => {
+    const start = readme.indexOf("## Try it");
+    expect(start).toBeGreaterThan(0);
+    const section = readme.slice(start);
+    for (const pattern of [/check the trip for gaps/i, /fix a gap|add that and check again/i, /export it/i, /update the calendar file/i, /paste/i]) expect(section).toMatch(pattern);
+  });
+
   it("does not say which version is the current one, since the page would go stale with the next release", () => {
     const status = readme.split("\n").find((line) => line.startsWith("**Status"))!;
     expect(status).not.toMatch(/\d+\.\d+\.\d+/);
