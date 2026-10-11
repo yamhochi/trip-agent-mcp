@@ -108,6 +108,21 @@ describe("the packed package", () => {
   }, 180_000);
 });
 
+describe("the readme, which npm shows as the package's front page", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+
+  it("links to the repository's files by full address, because a relative link does not work on the npm page", () => {
+    const relative = [...readme.matchAll(/\]\(([^)#\s]+)[^)]*\)/g)].map((m) => m[1]).filter((target) => !/^(https?:|mailto:)/.test(target));
+    expect(relative).toEqual([]);
+  });
+
+  it("does not say which version is the current one, since the page would go stale with the next release", () => {
+    const status = readme.split("\n").find((line) => line.startsWith("**Status"))!;
+    expect(status).not.toMatch(/\d+\.\d+\.\d+/);
+    expect(status).toMatch(/releases/i);
+  });
+});
+
 describe("the version the server reports", () => {
   it("is the version in package.json, which is also the manifest's", async () => {
     const server = await startServer();
@@ -160,6 +175,11 @@ describe("the release workflow", () => {
     expect(publish.indexOf("npm install -g npm@latest")).toBeLessThan(publish.indexOf("npm publish"));
     expect(workflow()).not.toMatch(/NPM_TOKEN/);
     expect(workflow()).not.toMatch(/NODE_AUTH_TOKEN/);
+  });
+
+  it("runs on a named Ubuntu version, not on ubuntu-latest, so a new runner image cannot change a release by surprise", () => {
+    expect(workflow()).not.toMatch(/ubuntu-latest/);
+    expect(workflow().match(/runs-on: ubuntu-24\.04/g) ?? []).toHaveLength(3);
   });
 
   it("never prints or commits a token", () => {

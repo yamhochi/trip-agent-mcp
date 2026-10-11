@@ -2,7 +2,7 @@
 
 An MCP server that checks a traveller's trip for what is missing and exports it as a calendar file on their own computer.
 
-**Status: version 0.1.0 is released.** It is on [npm](https://www.npmjs.com/package/trip-agent-mcp) and on the [releases page](https://github.com/yamhochi/trip-agent-mcp/releases) as an extension file for Claude Desktop. It has been tried by its maintainer on one real trip, in Claude Desktop, Claude Code and Cursor; it is early software. The decisions so far are in [docs/design.md](docs/design.md) and [docs/adr/](docs/adr/); the words the project uses are in [CONTEXT.md](CONTEXT.md).
+**Status: early software.** It is on [npm](https://www.npmjs.com/package/trip-agent-mcp), and on the [releases page](https://github.com/yamhochi/trip-agent-mcp/releases) as an extension file for Claude Desktop, which also shows the latest version. Its maintainer has tried it on one real trip, in Claude Desktop, Claude Code and Cursor. The decisions so far are in the [design notes](https://github.com/yamhochi/trip-agent-mcp/blob/main/docs/design.md) and the [decision records](https://github.com/yamhochi/trip-agent-mcp/tree/main/docs/adr); the words the project uses are in the [glossary](https://github.com/yamhochi/trip-agent-mcp/blob/main/CONTEXT.md).
 
 ## What it does
 
