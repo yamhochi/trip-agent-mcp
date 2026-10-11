@@ -97,13 +97,21 @@ function uid(...facts: string[]): string {
 
 type Booking = Trip["bookings"][number];
 
+const squash = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]/g, "");
+const tidy = (text: string) => text.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+
 /**
  * A leg's identity is a fingerprint of facts that do not change when a booking is amended: the
- * booking reference plus the flight number or property, never a time. A leg with no reference
- * falls back to its kind, name and original date, so moving it to another day makes a new event.
+ * booking reference plus the flight number or property, never a time. Claude re-reads the emails
+ * each time and may write the same fact slightly differently ("abc-123", "JL 044", extra spaces),
+ * so each fact is tidied first: references and flight numbers keep only letters and digits, names
+ * ignore case and spacing. A leg with no reference falls back to its kind, name and original date,
+ * so moving it to another day makes a new event.
  */
 function legId(booking: Booking, kind: Leg["kind"], name: string, date: string): string {
-  return booking.reference ? uid("booked", booking.reference, kind, name) : uid("unbooked", kind, name, date);
+  const fact = kind === "flight" ? squash(name) : tidy(name);
+  if (!booking.reference) return uid("unbooked", kind, fact, date);
+  return uid("booked", squash(booking.reference) || tidy(booking.reference), kind, fact);
 }
 
 /** The last two characters, or nothing at all for a code too short to show any of without giving it away. */
@@ -125,7 +133,9 @@ function emailLink(source: NonNullable<Booking["source"]>): string {
   return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
 }
 
-function event(booking: Booking, id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
+const eventStatus = { confirmed: "CONFIRMED", planned: "TENTATIVE", cancelled: "CANCELLED", idea: "CONFIRMED" } as const;
+
+function event(booking: Booking, status: Leg["status"], id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
   return [
     "BEGIN:VEVENT",
     `UID:${id}`,
@@ -136,7 +146,7 @@ function event(booking: Booking, id: string, stamp: string, dtstart: string, dte
     `LOCATION:${escapeText(location)}`,
     `DESCRIPTION:${escapeText(describeBooking(booking))}`,
     ...(booking.source ? [`URL:${booking.source.link ?? emailLink(booking.source)}`] : []),
-    "STATUS:CONFIRMED",
+    `STATUS:${eventStatus[status]}`,
     "END:VEVENT",
   ];
 }
@@ -159,6 +169,7 @@ function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
   const { departure, arrival } = leg;
   return event(
     booking,
+    leg.status,
     legId(booking, "flight", leg.flightNumber, leg.departure.localTime.slice(0, 10)),
     stamp,
     zoned("DTSTART", departure.timeZone, departure.localTime),
@@ -171,6 +182,7 @@ function flightEvent(booking: Booking, leg: Flight, stamp: string): string[] {
 function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
   return event(
     booking,
+    leg.status,
     legId(booking, "stay", leg.property, leg.checkIn),
     stamp,
     allDay("DTSTART", leg.checkIn),
@@ -183,6 +195,7 @@ function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
 function activityEvent(booking: Booking, leg: Activity, stamp: string): string[] {
   return event(
     booking,
+    leg.status,
     legId(booking, "activity", leg.name, leg.start.slice(0, 10)),
     stamp,
     zoned("DTSTART", leg.timeZone, leg.start),
@@ -213,6 +226,8 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
   const zones = new Map<string, string[]>();
   for (const b of trip.bookings) {
     for (const leg of b.legs) {
+      // An idea is never exported, and takes no time zone definition with it.
+      if (leg.status === "idea") continue;
       for (const end of zonedTimes(leg)) {
         if (!zones.has(end.timeZone)) zones.set(end.timeZone, vtimezone(end.timeZone, end.localTime));
       }

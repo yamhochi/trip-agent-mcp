@@ -36,6 +36,10 @@ _Avoid_: Option, maybe
 A leg the traveller intends but has not booked, such as a hotel shuttle on offer. It appears on the calendar as tentative. "Needs booking" is not a status; it is a planned leg with no booking.
 _Avoid_: Needs booking, pending
 
+**Cancelled**:
+A leg that was booked and no longer stands. It stays in the trip and is exported as a cancelled event with the same identity as the original, because importing a file never removes events that are merely missing from it.
+_Avoid_: Deleted, removed
+
 **Mailbox**:
 The traveller's email account, read by their own Claude through the traveller's own email connector. This server never reads it.
 _Avoid_: Email source, inbox

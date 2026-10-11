@@ -27,6 +27,12 @@ const localTime = z
     message: "is not a real date and time",
   });
 
+const status = z
+  .enum(["confirmed", "planned", "cancelled", "idea"])
+  .describe(
+    "confirmed: booked. planned: intended but not booked (exported as tentative). cancelled: was booked, now cancelled; keep it in the trip with its original details so the calendar event is cancelled rather than left behind. idea: only being considered; never exported and never counts as coverage.",
+  );
+
 const endpoint = z.object({
   location: z.string().min(1),
   localTime,
@@ -35,7 +41,7 @@ const endpoint = z.object({
 
 const flight = z.object({
   kind: z.literal("flight"),
-  status: z.literal("confirmed"),
+  status,
   flightNumber: z.string().min(1),
   departure: endpoint,
   arrival: endpoint,
@@ -49,7 +55,7 @@ export const date = z
 const stay = z
   .object({
     kind: z.literal("stay"),
-    status: z.literal("confirmed"),
+    status,
     property: z.string().min(1),
     location: z.string().min(1),
     checkIn: date,
@@ -67,7 +73,7 @@ const activityZone = z.string({
 const activity = z
   .object({
     kind: z.literal("activity"),
-    status: z.literal("confirmed"),
+    status,
     name: z.string().min(1),
     location: z.string().min(1),
     start: localTime,
