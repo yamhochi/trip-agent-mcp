@@ -3,6 +3,7 @@ import type { Activity, Leg, Stay, Travel, Trip } from "./schema.js";
 import { sameArea, tidy } from "./places.js";
 import { findGaps, type Gap, type RecordedGap } from "./gaps.js";
 import { cancelledEvents, readRecord, recordLine } from "./gap-record.js";
+import { bookmarkLine, laterDate, readBookmark } from "./bookmark.js";
 import { instantOf, shiftLocal, wallClockAsUtc, zoneAt } from "./time.js";
 
 const CRLF = "\r\n";
@@ -410,12 +411,18 @@ export interface BuiltCalendar {
   /** Gap placeholders in the file, and earlier ones written out cancelled. */
   placeholders: number;
   cancelled: number;
+  /** The bookmark the file now carries, if any, and whether the earlier file had one that could not be read. */
+  bookmark?: string;
+  earlierBookmarkUnreadable: boolean;
 }
 
-export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: string): BuiltCalendar {
+/** `bookmark` is the date of the latest email processed; without one, the earlier file's bookmark is carried over, and an older one never replaces a newer. */
+export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: string, bookmark?: string): BuiltCalendar {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const events: string[][] = [];
   const zones = new Map<string, string[]>();
+  const earlier = readBookmark(previous, now);
+  const saved = laterDate(bookmark, earlier.date);
   for (const b of trip.bookings) {
     for (const leg of b.legs) {
       // An idea is never exported, and takes no time zone definition with it.
@@ -439,9 +446,10 @@ export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: str
     "CALSCALE:GREGORIAN",
     `X-WR-CALNAME:${escapeText(trip.name)}`,
     recordLine(gapped.record),
+    bookmarkLine({ date: saved, exportedAt: now.toISOString() }),
     ...[...zones.keys()].sort().flatMap((k) => zones.get(k)!),
     ...events.flat(),
     "END:VCALENDAR",
   ];
-  return { text: lines.map(fold).join(CRLF) + CRLF, placeholders: gapped.added, cancelled: gapped.cancelled };
+  return { text: lines.map(fold).join(CRLF) + CRLF, placeholders: gapped.added, cancelled: gapped.cancelled, bookmark: saved, earlierBookmarkUnreadable: earlier.unreadable === true };
 }

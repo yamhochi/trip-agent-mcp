@@ -2,11 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { oneFlightTrip } from "./samples.js";
-import { makeHome, startServer, textOf } from "./harness.js";
+import { makeHome, startServer, textOf, stableIcs } from "./harness.js";
 
 const knownGood = (name: string) => readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
-// DTSTAMP is the export moment, so it is the one line that cannot be saved.
-const withoutStamp = (ics: string) => ics.replace(/^DTSTAMP:.*$/gm, "DTSTAMP:20000101T000000Z");
+// DTSTAMP and the bookmark's export time are the export moment, so they cannot be saved.
 
 const open: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
@@ -18,7 +17,7 @@ describe("trip-agent server", () => {
     const server = await startServer();
     open.push(server);
     const { tools } = await server.client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["check_trip", "export_trip", "open_trip_file"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["check_trip", "export_trip", "get_trip_file_info", "open_trip_file"]);
   });
 
   it("exports a one-flight trip that matches the known-good calendar file", async () => {
@@ -29,7 +28,7 @@ describe("trip-agent server", () => {
     expect(result.isError).toBeFalsy();
     const path = join(dir, "sample-japan-trip-2026-12-01.ics");
     expect(textOf(result)).toContain(path);
-    expect(withoutStamp(readFileSync(path, "utf8"))).toBe(knownGood("one-flight.ics"));
+    expect(stableIcs(readFileSync(path, "utf8"))).toBe(knownGood("one-flight.ics"));
   });
 
   it("builds the filename itself, so a hostile trip name cannot become a path", async () => {

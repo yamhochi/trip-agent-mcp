@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { oneFlightTrip } from "./samples.js";
-import { makeHome, startServer, textOf } from "./harness.js";
+import { makeHome, startServer, textOf, stableIcs } from "./harness.js";
 
 const open: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
@@ -260,6 +260,6 @@ describe("hotel shuttles", () => {
     const { result, ics } = await (await exporter()).export({ ...oneFlightTrip, bookings: [oneFlightTrip.bookings[0], hotel(), domesticLeaving] });
     expect(result.isError, textOf(result)).toBeFalsy();
     const expected = readFileSync(join(import.meta.dirname, "fixtures", "airport.ics"), "utf8");
-    expect(unfold(ics!).replace(/^DTSTAMP:.*$/gm, "DTSTAMP:20000101T000000Z")).toBe(expected);
+    expect(stableIcs(ics!)).toBe(expected);
   });
 });

@@ -3,6 +3,7 @@ import { buildCalendar, gapId } from "./ics.js";
 import { readTripFile, tripFilePath, writeTripFile } from "./files.js";
 import { coveringLeg, findGaps, hasStandingLegs, type RecordedGap } from "./gaps.js";
 import { readRecord } from "./gap-record.js";
+import { isFutureDate, readBookmark } from "./bookmark.js";
 import { openFile } from "./open.js";
 import { access } from "node:fs/promises";
 import { z } from "zod";
@@ -22,10 +23,15 @@ export function createServer(): McpServer {
     "export_trip",
     {
       description:
-        "Export a trip as a calendar (.ics) file on the traveller's computer. Takes the assembled trip (name, start date, home city, bookings with their legs: each leg is travel by flight, train, ferry, bus, car or other, a stay, or an activity); the server chooses the file name and folder. Each gap the check finds is also written as a tentative placeholder event (for example \"Missing: no lodging booked\"), and a placeholder from an earlier export whose gap is now fixed is written out as cancelled. Show the traveller the trip, the gaps and any gaps now covered, and get their confirmation before calling this. Returns the path written.",
-      inputSchema: { trip: tripSchema },
+        "Export a trip as a calendar (.ics) file on the traveller's computer. Takes the assembled trip (name, start date, home city, bookings with their legs: each leg is travel by flight, train, ferry, bus, car or other, a stay, or an activity); the server chooses the file name and folder. Each gap the check finds is also written as a tentative placeholder event (for example \"Missing: no lodging booked\"), and a placeholder from an earlier export whose gap is now fixed is written out as cancelled. Show the traveller the trip, the gaps and any gaps now covered, and get their confirmation before calling this. Pass latestEmailDate (the date of the latest email you processed) so the next run can start its search there; it is saved only if the export succeeds, an older date never replaces a newer one, a date in the future is refused, and leaving it out keeps the earlier bookmark. The reply says which bookmark the file now has. Returns the path written.",
+      inputSchema: {
+        trip: tripSchema,
+        latestEmailDate: date
+          .optional()
+          .describe("The date of the latest email processed for this trip, as the bookmark where the next mailbox search starts. Leave it out to keep the earlier bookmark."),
+      },
     },
-    async ({ trip }) => {
+    async ({ trip, latestEmailDate }) => {
       // A calendar file needs at least one event, and an empty one would overwrite a good earlier export.
       if (trip.bookings.every((b) => b.legs.every((l) => l.status === "idea"))) {
         return {
@@ -37,7 +43,15 @@ export function createServer(): McpServer {
           ],
         };
       }
-      const calendar = buildCalendar(trip, new Date(), await readTripFile(trip.name, trip.startDate));
+      if (latestEmailDate && isFutureDate(latestEmailDate, new Date())) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Nothing was exported: latestEmailDate ${latestEmailDate} is in the future. Pass the date of the latest email you actually processed (today at the latest), or leave it out to keep the earlier bookmark.` }],
+        };
+      }
+      const earlierFile = await readTripFile(trip.name, trip.startDate);
+      const earlierExists = earlierFile !== undefined || (await access(tripFilePath(trip.name, trip.startDate)).then(() => true, () => false));
+      const calendar = buildCalendar(trip, new Date(), earlierFile, latestEmailDate);
       try {
         const { path, similar } = await writeTripFile(trip.name, trip.startDate, calendar.text);
         const placeholders = [
@@ -48,7 +62,14 @@ export function createServer(): McpServer {
         const notice = similar.length
           ? ` A file for a similarly named trip with a different start date already exists in that folder (${similar.join(", ")}). If the trip moved, the old file may now be stale: ask the traveller before suggesting they delete it.`
           : "";
-        return { content: [{ type: "text", text: `Exported "${trip.name}" to ${path}${notice || gapNote ? "." : ""}${notice}${gapNote}` }] };
+        // Say which bookmark the file now has, so a bookmark that was not saved is never a surprise.
+        const earlierLost = calendar.earlierBookmarkUnreadable || (earlierExists && earlierFile === undefined);
+        const bookmarkNote = calendar.bookmark
+          ? ` Bookmark: ${calendar.bookmark}${latestEmailDate && latestEmailDate < calendar.bookmark ? ` (the earlier, later date was kept; ${latestEmailDate} is older)` : ""}.`
+          : earlierLost && !latestEmailDate
+            ? " No bookmark was saved: the earlier file's bookmark could not be read, and no latestEmailDate was given. Pass latestEmailDate next time."
+            : " No bookmark was saved: no latestEmailDate was given.";
+        return { content: [{ type: "text", text: `Exported "${trip.name}" to ${path}.${notice}${gapNote}${bookmarkNote}` }] };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return {
@@ -83,6 +104,41 @@ export function createServer(): McpServer {
             .join("\n")}`
         : "";
       return { content: [{ type: "text", text: text + earlier }] };
+    },
+  );
+  server.registerTool(
+    "get_trip_file_info",
+    {
+      description:
+        "Say whether a trip's exported calendar file exists, and if it does, its bookmark (the date of the latest email processed by the last export) and when it was last exported. Takes the trip name and start date. Call it before searching the mailbox: search from the bookmark date, going back a few days; if there is no file or no bookmark, search the mailbox for the trip itself. Changes nothing.",
+      inputSchema: { name: z.string().min(1), startDate: date },
+    },
+    async ({ name, startDate }) => {
+      const path = tripFilePath(name, startDate);
+      try {
+        await access(path);
+      } catch {
+        return {
+          content: [{ type: "text", text: `No file for "${name}" starting ${startDate}: it has not been exported. Search the mailbox for the trip itself, with no start date, then export it.` }],
+        };
+      }
+      const text = await readTripFile(name, startDate);
+      if (text === undefined) {
+        return {
+          content: [{ type: "text", text: `The file for "${name}" starting ${startDate} exists but could not be read (it may be damaged or larger than expected), so its bookmark is unknown. Search the mailbox for the trip itself.` }],
+        };
+      }
+      const { date: bookmark, exportedAt, unreadable } = readBookmark(text);
+      const lines = [
+        `The file for "${name}" starting ${startDate} exists.`,
+        bookmark
+          ? `Bookmark: ${bookmark} (the latest email processed). Search from there, going back a few days.`
+          : unreadable
+            ? "The file's bookmark could not be read, so search the mailbox for the trip itself."
+            : "This file has no bookmark, so search the mailbox for the trip itself.",
+        `Last exported: ${exportedAt ?? "unknown"}`,
+      ];
+      return { content: [{ type: "text", text: lines.join("\n") }] };
     },
   );
   server.registerTool(
