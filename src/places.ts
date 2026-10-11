@@ -21,7 +21,7 @@ export function sameArea(a: string, b: string): boolean {
 }
 
 /** Two names that start alike but are not the same place may be two airports of one city. */
-export const mayBeSameCity = (a: string, b: string) => words(a)[0] === words(b)[0];
+export const mayBeSameCity = (a: string, b: string) => words(a).length > 0 && words(a)[0] === words(b)[0];
 
 /** A fact tidied so that the same thing written slightly differently reads alike: NFKC, trimmed, single spaces, lower case. */
 export const tidy = (text: string) => text.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();

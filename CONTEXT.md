@@ -36,6 +36,10 @@ _Avoid_: Reminder, cut-off
 Something a trip is missing, found by plain rules: an unbooked night, a broken location chain, a missing return. It appears on the calendar as a tentative placeholder event until it is fixed, then as a cancelled one. A placeholder is not a leg and never counts as coverage.
 _Avoid_: Warning, issue
 
+**Near miss**:
+A leg that looks related to a gap but does not satisfy its rule, such as a flight into Tokyo Narita when the next flight leaves from Tokyo Haneda, or a stay in the right city that starts a day late. The checker reports it so Claude can ask the traveller whether it is the same thing. It never clears or cancels a gap; the answer becomes a corrected leg.
+_Avoid_: Warning, partial match
+
 **Idea**:
 A leg the traveller is considering but has not decided on, such as a candidate restaurant. It never counts as coverage or travel, and it is left out of the calendar export.
 _Avoid_: Option, maybe

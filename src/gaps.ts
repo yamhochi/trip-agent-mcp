@@ -10,7 +10,18 @@ export type GapRule = "unbooked-night" | "broken-chain" | "missing-return";
  * is made of, never a time of day, so the same gap has the same id on every export. `from` and `to` are the
  * two places of a broken chain, or the home city of a missing return, so that the leg that later covers it can be found.
  */
-export type Gap = { rule: GapRule; message: string; title: string; start: string; end: string; facts: string[]; from?: string; to?: string };
+export type Gap = {
+  rule: GapRule;
+  message: string;
+  title: string;
+  start: string;
+  end: string;
+  facts: string[];
+  from?: string;
+  to?: string;
+  /** A leg that looks related but does not satisfy the rule, worded for Claude to ask the traveller about. It never clears the gap. */
+  nearMiss?: string;
+};
 
 const MS_PER_DAY = 86_400_000;
 const dayOf = (localTime: string) => localTime.slice(0, 10);
@@ -31,6 +42,25 @@ function journeyOf(leg: Leg): Journey | undefined {
     return { label: leg.identifier ? `${name} ${leg.identifier}` : `the ${name}`, from: leg.from, to: leg.to };
   }
   return undefined;
+}
+
+/** A stay in the place the traveller already is, starting the day after the one unbooked night: probably a day late. */
+function lateStayNearMiss(legs: Leg[], night: string): string | undefined {
+  const there = legs.flatMap((leg) => {
+    const journey = journeyOf(leg);
+    if (journey && dayOf(journey.to.localTime) === night) return [journey.to.location];
+    return leg.kind === "stay" && leg.checkOut === night ? [leg.location] : [];
+  });
+  for (const stay of legs) {
+    if (stay.kind !== "stay" || stay.checkIn !== addDays(night, 1)) continue;
+    const place = there.find((p) => sameArea(stay.location, p));
+    if (place) return nearMissLateStay(stay.property, stay.location, stay.checkIn, place, night);
+  }
+  return undefined;
+}
+
+function nearMissLateStay(property: string, location: string, checkIn: string, place: string, night: string): string {
+  return `Near miss for the unbooked night of ${night}: the stay at ${property} in ${location} starts on ${checkIn}, a day after that night, and the traveller is already in ${place} on ${night}. This does not clear the gap: ask the traveller whether the stay should start a day earlier, and if so, correct its check-in date.`;
 }
 
 function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): Gap[] {
@@ -64,6 +94,7 @@ function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): 
       start: runStart,
       end: addDays(runEnd, 1),
       facts: [runStart],
+      nearMiss: nights === 1 ? lateStayNearMiss(legs, runStart) : undefined,
       message:
         nights === 1
           ? `Unbooked night: nothing is booked or planned for the night of ${runStart}.`
@@ -134,10 +165,7 @@ function brokenChains(legs: Leg[]): Gap[] {
     // Two journeys must meet at the same place; once a stay is involved, sharing a place name is enough.
     const connected = before.stay || next.stay ? sameArea(before.arrives, next.leaves) : samePlace(before.arrives, next.leaves);
     if (connected) continue;
-    const maybe =
-      !before.stay && !next.stay && mayBeSameCity(before.arrives, next.leaves)
-        ? " These may be two airports of the same city: check with the traveller before treating it as a gap."
-        : "";
+    const sameCity = !before.stay && !next.stay && mayBeSameCity(before.arrives, next.leaves);
     gaps.push({
       rule: "broken-chain",
       title: `Missing: no way to get from ${before.arrives} to ${next.leaves}`,
@@ -146,7 +174,10 @@ function brokenChains(legs: Leg[]): Gap[] {
       facts: [tidy(before.arrives), tidy(next.leaves)],
       from: before.arrives,
       to: next.leaves,
-      message: `Broken location chain: ${before.endsWith}, but ${next.startsWith}. Nothing is booked or planned to get from one to the other.${maybe}`,
+      nearMiss: sameCity
+        ? `Near miss for the broken location chain (${before.endsWith}, but ${next.startsWith}): the two places share a city, so they may be one place under two names or two airports of one city. This does not clear the gap: ask the traveller, and if they are the same place, correct the leg that names the wrong one.`
+        : undefined,
+      message: `Broken location chain: ${before.endsWith}, but ${next.startsWith}. Nothing is booked or planned to get from one to the other.`,
     });
   }
   return gaps;
