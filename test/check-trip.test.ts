@@ -134,9 +134,10 @@ describe("check_trip", () => {
       expect(text).not.toContain("Missing return");
     });
 
+    const localDinner = { ...dinnerBooking, legs: [{ ...dinnerBooking.legs[0], location: "London", timeZone: "Europe/London", start: "2026-12-02T20:00", end: "2026-12-02T22:00" }] };
     it("does not fire on a trip that stays in the home city", async () => {
       const local = stayBooking("Sample Hotel London", "London", "2026-12-01", "2026-12-03");
-      const { text } = await checkTrip(trip(local, dinnerBooking.legs.length ? { ...dinnerBooking, legs: [{ ...dinnerBooking.legs[0], location: "London", timeZone: "Europe/London", start: "2026-12-02T20:00", end: "2026-12-02T22:00" }] } : local));
+      const { text } = await checkTrip(trip(local, localDinner));
       expect(text).not.toContain("Missing return");
     });
   });
@@ -152,5 +153,49 @@ describe("check_trip", () => {
     const { result, text } = await checkTrip(trip(withStatus(hotelBooking, "idea")));
     expect(result.isError).toBeFalsy();
     expect(text).toContain("Nothing to check");
+  });
+
+  describe("misfires found in review", () => {
+    const london = "London Heathrow (LHR)";
+    const outToParis = flightBooking("SA100", [london, "2026-12-01T08:00", "Europe/London"], ["Paris Charles de Gaulle (CDG)", "2026-12-01T10:30", "Europe/Paris"]);
+    const backFromParis = (day: string) =>
+      flightBooking("SA101", ["Paris Charles de Gaulle (CDG)", `${day}T10:00`, "Europe/Paris"], [london, `${day}T10:30`, "Europe/London"]);
+
+    it("does not treat two different places that share a first word as the same place", async () => {
+      const toNewYork = flightBooking("SA200", [london, "2026-12-01T09:00", "Europe/London"], ["New York JFK", "2026-12-01T12:00", "America/New_York"]);
+      const fromNewDelhi = flightBooking("SA201", ["New Delhi (DEL)", "2026-12-03T09:00", "Asia/Kolkata"], [london, "2026-12-03T20:00", "Europe/London"]);
+      const { text } = await checkTrip(trip(toNewYork, fromNewDelhi));
+      expect(text).toContain("Broken location chain");
+      expect(text).toContain("New York JFK");
+      expect(text).toContain("New Delhi (DEL)");
+    });
+
+    it("still reads a city name and one of its airports as the same place", async () => {
+      const toTokyo = flightBooking("SA300", [london, "2026-12-01T09:00", "Europe/London"], ["Tokyo", "2026-12-02T07:00", "Asia/Tokyo"]);
+      const fromHaneda = flightBooking("SA301", ["Tokyo Haneda (HND)", "2026-12-03T09:00", "Asia/Tokyo"], [london, "2026-12-03T15:00", "Europe/London"]);
+      const { text } = await checkTrip(trip(toTokyo, stayBooking("Sample Hotel Tokyo", "Tokyo", "2026-12-02", "2026-12-03"), fromHaneda));
+      expect(text).not.toContain("Broken location chain");
+    });
+
+    it("flags two airports of one city, and says they may be the same city", async () => {
+      const toNarita = flightBooking("SA400", [london, "2026-12-01T09:00", "Europe/London"], ["Tokyo Narita (NRT)", "2026-12-02T07:00", "Asia/Tokyo"]);
+      const fromHaneda = flightBooking("SA401", ["Tokyo Haneda (HND)", "2026-12-02T20:00", "Asia/Tokyo"], [london, "2026-12-03T06:00", "Europe/London"]);
+      const { text } = await checkTrip(trip(toNarita, fromHaneda));
+      expect(text).toContain("Broken location chain");
+      expect(text).toMatch(/same city/i);
+    });
+
+    it("does not report a missing return when a stay runs past the flight home", async () => {
+      const parisStay = stayBooking("Sample Hotel Paris", "Paris", "2026-12-01", "2026-12-04");
+      const { text } = await checkTrip(trip(outToParis, parisStay, backFromParis("2026-12-03")));
+      expect(text).toBe('No gaps found in "Sample Japan Trip".');
+    });
+
+    it("does not let an activity after the flight home create unbooked nights", async () => {
+      const parisStay = stayBooking("Sample Hotel Paris", "Paris", "2026-12-01", "2026-12-03");
+      const romeDinner = { vendor: "Sample Trattoria", legs: [{ ...dinnerBooking.legs[0], name: "Dinner in Rome", location: "Rome", start: "2026-12-10T20:00", end: "2026-12-10T22:00", timeZone: "Europe/Rome" }] };
+      const { text } = await checkTrip(trip(outToParis, parisStay, backFromParis("2026-12-03"), romeDinner));
+      expect(text).toBe('No gaps found in "Sample Japan Trip".');
+    });
   });
 });
