@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { oneFlightTrip } from "./samples.js";
 import { makeHome, startServer, textOf } from "./harness.js";
@@ -81,6 +81,59 @@ describe("bookmark", () => {
     expect(await s.info()).toContain("2026-10-05");
   });
 
+  it("never moves the bookmark back: an older date than the one saved keeps the newer", async () => {
+    const s = await session();
+    await s.exportTrip({ latestEmailDate: "2026-10-09" });
+    const result = await s.exportTrip({ latestEmailDate: "2026-10-05" });
+    expect(result.isError, textOf(result)).toBeFalsy();
+    expect(await s.info()).toContain("Bookmark: 2026-10-09");
+    expect(textOf(result)).toContain("2026-10-09");
+  });
+
+  it("rejects a date in the future, saying why, and writes nothing", async () => {
+    const s = await session();
+    const result = await s.exportTrip({ latestEmailDate: "2099-01-01" });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatch(/future/i);
+    expect(existsSync(s.file)).toBe(false);
+  });
+
+  it("accepts today's date", async () => {
+    const s = await session();
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await s.exportTrip({ latestEmailDate: today });
+    expect(result.isError, textOf(result)).toBeFalsy();
+    expect(await s.info()).toContain(`Bookmark: ${today}`);
+  });
+
+  it("ignores a bookmark in the file that is in the future, as if there were none", async () => {
+    const s = await session();
+    await s.exportTrip({ latestEmailDate: "2026-10-05" });
+    const hostile = encodeURIComponent(JSON.stringify({ date: "2099-01-01", exportedAt: "2026-10-05T00:00:00.000Z" }));
+    writeFileSync(s.file, unfold(readFileSync(s.file, "utf8")).replace(/^X-TRIP-AGENT-BOOKMARK.*$/m, `X-TRIP-AGENT-BOOKMARK;VERSION=2:${hostile}`));
+    const text = await s.info();
+    expect(text).not.toContain("2099");
+    expect(text).toMatch(/no bookmark|could not be read/i);
+  });
+
+  it("tells Claude in the export reply which bookmark the file now has", async () => {
+    const s = await session();
+    expect(textOf(await s.exportTrip({ latestEmailDate: "2026-10-05" }))).toContain("Bookmark: 2026-10-05");
+    expect(textOf(await s.exportTrip())).toContain("Bookmark: 2026-10-05");
+    const fresh = await session();
+    expect(textOf(await fresh.exportTrip())).toMatch(/no bookmark/i);
+  });
+
+  it("says so, instead of silently dropping the bookmark, when the earlier file's bookmark cannot be read and no date is given", async () => {
+    const s = await session();
+    await s.exportTrip({ latestEmailDate: "2026-10-05" });
+    writeFileSync(s.file, unfold(readFileSync(s.file, "utf8")).replace(/^X-TRIP-AGENT-BOOKMARK.*$/m, "X-TRIP-AGENT-BOOKMARK;VERSION=9:???"));
+    const result = textOf(await s.exportTrip());
+    expect(result).toMatch(/no bookmark/i);
+    expect(result).toMatch(/could not be read/i);
+    expect(result).toMatch(/latestEmailDate/);
+  });
+
   it("rejects a date that is not a real date", async () => {
     const s = await session();
     const result = await s.exportTrip({ latestEmailDate: "2026-13-45" });
@@ -140,6 +193,23 @@ describe("get_trip_file_info", () => {
     const s = await session();
     await s.exportTrip({ latestEmailDate: "2026-10-05" });
     writeFileSync(s.file, unfold(readFileSync(s.file, "utf8")).replace(/^X-TRIP-AGENT-BOOKMARK.*$/m, "X-TRIP-AGENT-BOOKMARK;VERSION=9:???"));
-    expect(await s.info()).toContain("no bookmark");
+    expect(await s.info()).toContain("search the mailbox for the trip itself");
+  });
+
+  it("says the bookmark could not be read, rather than that there is none, when the property is damaged", async () => {
+    const s = await session();
+    await s.exportTrip({ latestEmailDate: "2026-10-05" });
+    writeFileSync(s.file, unfold(readFileSync(s.file, "utf8")).replace(/^X-TRIP-AGENT-BOOKMARK.*$/m, "X-TRIP-AGENT-BOOKMARK;VERSION=9:???"));
+    expect(await s.info()).toMatch(/could not be read/i);
+  });
+
+  it("says the file could not be read, with a reason, when it exists but is too large", async () => {
+    const s = await session();
+    await s.exportTrip({ latestEmailDate: "2026-10-05" });
+    writeFileSync(s.file, "X".repeat(5_100_000));
+    const text = await s.info();
+    expect(text).toContain("exists");
+    expect(text).toMatch(/could not be read/i);
+    expect(text).not.toMatch(/Last exported: unknown/);
   });
 });
