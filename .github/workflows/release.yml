@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -51,6 +55,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
-      - run: npm publish --access public --provenance
+      - name: Publish (a prerelease version such as 1.0.0-rc.1 goes out under the "next" tag, not "latest")
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          case "$version" in *-*) tag=next ;; *) tag=latest ;; esac
+          npm publish --access public --provenance --tag "$tag"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
