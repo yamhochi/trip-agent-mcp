@@ -6,3 +6,5 @@ dist/
 !.env.example
 *.log
 .claude/
+build/
+*.mcpb

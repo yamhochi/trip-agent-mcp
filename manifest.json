@@ -1,0 +1,64 @@
+{
+  "manifest_version": "0.3",
+  "name": "trip-agent-mcp",
+  "display_name": "Trip Agent",
+  "version": "0.0.0",
+  "description": "Checks a trip for gaps and exports it as a calendar file on your computer.",
+  "long_description": "Your own Claude reads your booking emails with your own email connector and assembles the trip. Trip Agent finds what is missing (an unbooked night, a journey that does not connect, a missing return) and writes the trip as a calendar (.ics) file on your computer, with the gaps as placeholders until you fix them. It reads no email, keeps no trips, and never writes passport, card, e-ticket or loyalty numbers.",
+  "author": {
+    "name": "yamhochi",
+    "url": "https://github.com/yamhochi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yamhochi/trip-agent-mcp.git"
+  },
+  "homepage": "https://github.com/yamhochi/trip-agent-mcp#readme",
+  "documentation": "https://github.com/yamhochi/trip-agent-mcp#readme",
+  "support": "https://github.com/yamhochi/trip-agent-mcp/issues",
+  "license": "MIT",
+  "keywords": ["travel", "itinerary", "calendar", "ics"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "TRIP_AGENT_DIR": "${user_config.export_folder}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "get_trip_file_info",
+      "description": "Say whether a trip's calendar file exists, and where the last mailbox search stopped."
+    },
+    {
+      "name": "check_trip",
+      "description": "Check a trip for an unbooked night, a broken location chain or a missing return."
+    },
+    {
+      "name": "export_trip",
+      "description": "Write the trip as a calendar (.ics) file on your computer."
+    },
+    {
+      "name": "open_trip_file",
+      "description": "Open the exported calendar file in your default calendar app."
+    }
+  ],
+  "user_config": {
+    "export_folder": {
+      "type": "directory",
+      "title": "Export folder",
+      "description": "Where the calendar files are written. Leave it blank to use Documents/trip-agent in your home folder.",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=22"
+    }
+  }
+}
