@@ -4,6 +4,7 @@ import { readTripFile, tripFilePath, writeTripFile } from "./files.js";
 import { coveringLeg, findGaps, hasStandingLegs, type RecordedGap } from "./gaps.js";
 import { readRecord } from "./gap-record.js";
 import { isFutureDate, readBookmark } from "./bookmark.js";
+import { instructions } from "./instructions.js";
 import { openFile } from "./open.js";
 import { access } from "node:fs/promises";
 import { z } from "zod";
@@ -18,12 +19,12 @@ function describeRecorded(r: RecordedGap): string {
 }
 
 export function createServer(): McpServer {
-  const server = new McpServer({ name: "trip-agent-mcp", version: "0.0.0" });
+  const server = new McpServer({ name: "trip-agent-mcp", version: "0.0.0" }, { instructions });
   server.registerTool(
     "export_trip",
     {
       description:
-        "Export a trip as a calendar (.ics) file on the traveller's computer. Takes the assembled trip (name, start date, home city, bookings with their legs: each leg is travel by flight, train, ferry, bus, car or other, a stay, or an activity); the server chooses the file name and folder. Each gap the check finds is also written as a tentative placeholder event (for example \"Missing: no lodging booked\"), and a placeholder from an earlier export whose gap is now fixed is written out as cancelled. Show the traveller the trip, the gaps and any gaps now covered, and get their confirmation before calling this. Pass latestEmailDate (the date of the latest email you processed) so the next run can start its search there; it is saved only if the export succeeds, an older date never replaces a newer one, a date in the future is refused, and leaving it out keeps the earlier bookmark. The reply says which bookmark the file now has. Returns the path written.",
+        "Export a trip as a calendar (.ics) file on the traveller's computer. Takes the assembled trip (name, start date, home city, bookings with their legs: each leg is travel by flight, train, ferry, bus, car or other, a stay, or an activity); the server chooses the file name and folder. Each gap the check finds is also written as a tentative placeholder event (for example \"Missing: no lodging booked\"), and a placeholder from an earlier export whose gap is now fixed is written out as cancelled. Show the traveller the trip, the gaps and any gaps now cleared, and get their confirmation before every export. Set international on every flight (ask the traveller if unsure), ask the traveller for any time zone you cannot work out, and record breakfastIncluded, airportTransit and deadlines only when the email states them outright (never guess a date); a breakfast, shuttle or deadline that is merely available or unstated makes no event. Pass latestEmailDate (the date of the latest email you processed) so the next run can start its search there; it is saved only if the export succeeds, an older date never replaces a newer one, a date in the future is refused, and leaving it out keeps the earlier bookmark. The reply says which bookmark the file now has. Returns the path written.",
       inputSchema: {
         trip: tripSchema,
         latestEmailDate: date
@@ -83,7 +84,7 @@ export function createServer(): McpServer {
     "check_trip",
     {
       description:
-        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a journey by any mode of travel, or a stay, that does not start where the previous one ended) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights; calendar placeholders never count either. When a leg looks related to a gap but does not satisfy it (a flight into another airport of the same city, a stay that starts a day late), it is also reported as a near miss: that never clears the gap, so ask the traveller whether it is the same thing, and turn the answer into a corrected leg. Reads the trip's earlier export, if there is one, and also reports each gap recorded there that the trip now covers, and by which leg: ask the traveller to confirm before exporting, which cancels its placeholder. Changes nothing. Returns each gap in plain English: relay them to the traveller and ask how they want to fix them.",
+        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a journey by any mode of travel, or a stay, that does not start where the previous one ended) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights; calendar placeholders never count either. When a leg looks related to a gap but does not satisfy it (a flight into another airport of the same city, a stay that starts a day late), it is also reported as a near miss: that never clears the gap, so ask the traveller whether it is the same thing, and turn the answer into a corrected leg. Reads the trip's earlier export, if there is one, and also reports each gap recorded there that the trip now covers, and by which leg: ask the traveller to confirm before exporting, which cancels its placeholder. Changes nothing. Returns each gap in plain English: relay them to the traveller in natural language and ask how they want to fix them. When checking a trip, also mention any cancellation and payment deadlines that are close.",
       inputSchema: { trip: tripSchema },
     },
     async ({ trip }) => {
@@ -114,7 +115,7 @@ export function createServer(): McpServer {
     "get_trip_file_info",
     {
       description:
-        "Say whether a trip's exported calendar file exists, and if it does, its bookmark (the date of the latest email processed by the last export) and when it was last exported. Takes the trip name and start date. Call it before searching the mailbox: search from the bookmark date, going back a few days; if there is no file or no bookmark, search the mailbox for the trip itself. Changes nothing.",
+        "Say whether a trip's exported calendar file exists, and if it does, its bookmark (the date of the latest email processed by the last export) and when it was last exported. Takes the trip name and start date. Before searching the mailbox, check that an email connector is available; if there is none, say plainly that one is needed and offer to work from booking emails the traveller pastes. Ask which trip the traveller means if they have not said. Then call this: search from the bookmark date, going back a few days, and widen the search only when the traveller names an email you cannot find; if there is no file or no bookmark, search the mailbox for the trip itself. Changes nothing.",
       inputSchema: { name: z.string().min(1), startDate: date },
     },
     async ({ name, startDate }) => {
@@ -149,7 +150,7 @@ export function createServer(): McpServer {
     "open_trip_file",
     {
       description:
-        "Open a trip's exported calendar file in the traveller's default calendar app. Takes the trip name and start date, never a path. Only a file this server exported can be opened.",
+        "Open a trip's exported calendar file in the traveller's default calendar app. Takes the trip name and start date, never a path. Offer it after a successful export. Only a file this server exported can be opened.",
       inputSchema: { name: z.string().min(1), startDate: date },
     },
     async ({ name, startDate }) => {
