@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildCalendar, gapId } from "./ics.js";
 import { readTripFile, tripFilePath, writeTripFile } from "./files.js";
@@ -18,8 +19,11 @@ function describeRecorded(r: RecordedGap): string {
   return `The broken location chain noted on ${r.start}`;
 }
 
+/** The version in package.json, which sits beside dist/ in the npm package and in the extension bundle. */
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
 export function createServer(): McpServer {
-  const server = new McpServer({ name: "trip-agent-mcp", version: "0.0.0" }, { instructions });
+  const server = new McpServer({ name: "trip-agent-mcp", version }, { instructions });
   server.registerTool(
     "export_trip",
     {

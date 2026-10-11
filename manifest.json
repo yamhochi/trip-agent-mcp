@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "trip-agent-mcp",
   "display_name": "Trip Agent",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Checks a trip for gaps and exports it as a calendar file on your computer.",
   "long_description": "Your own Claude reads your booking emails with your own email connector and assembles the trip. Trip Agent finds what is missing (an unbooked night, a journey that does not connect, a missing return) and writes the trip as a calendar (.ics) file on your computer, with the gaps as placeholders until you fix them. It reads no email, keeps no trips, and never writes passport, card, e-ticket or loyalty numbers.",
   "author": {
