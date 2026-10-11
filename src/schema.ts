@@ -148,6 +148,13 @@ const booking = z.object({
     .max(NOTE_MAX, { message: `is too long (the limit is ${NOTE_MAX} characters): shorten it, and leave details in the email` })
     .optional()
     .describe(`A short note for the event description, at most ${NOTE_MAX} characters. Never put card, passport, e-ticket or loyalty numbers in it.`),
+  deadlines: z
+    .object({
+      cancellationBy: date.optional().describe("The date free cancellation ends, only when the email states it outright."),
+      paymentDueBy: date.optional().describe("The date payment is due, only when the email states it outright."),
+    })
+    .optional()
+    .describe("Deadlines on this booking. Include one only when the email states the date outright; never work one out or guess. Leave this out when the email states none."),
   source: source.optional(),
   legs: z.array(leg).min(1),
 });

@@ -120,7 +120,7 @@ function event(booking: Booking, status: Leg["status"], id: string, stamp: strin
     dtstart,
     dtend,
     `SUMMARY:${escapeText(summary)}`,
-    `LOCATION:${escapeText(location)}`,
+    ...(location ? [`LOCATION:${escapeText(location)}`] : []),
     `DESCRIPTION:${escapeText(description)}`,
     ...(booking.source ? [`URL:${booking.source.link ?? emailLink(booking.source)}`] : []),
     `STATUS:${eventStatus[status]}`,
@@ -248,6 +248,46 @@ function breakfastEvents(booking: Booking, stay: Stay, stamp: string): string[][
   );
 }
 
+/** What a booking is called in a deadline's title: its first leg, and how many more it covers. */
+function bookingLabel(booking: Booking): string {
+  const [first, ...more] = booking.legs;
+  const label = first.kind === "travel" ? travelName(first) : first.kind === "stay" ? first.property : first.name;
+  return more.length ? `${label} and ${more.length} more` : label;
+}
+
+/**
+ * A deadline for the booking, an all-day event on the date it falls. It exists only when the email
+ * stated the date, and takes its identity from the booking and the kind of deadline, never the date,
+ * so moving the date updates the same event. A booking with no reference borrows its first leg's identity.
+ */
+function deadlineEvents(booking: Booking, stamp: string): string[][] {
+  const live = booking.legs.filter((leg) => leg.status !== "idea");
+  if (live.length === 0 || !booking.deadlines) return [];
+  const status = live.every((leg) => leg.status === "cancelled") ? "cancelled" : live.every((leg) => leg.status === "planned") ? "planned" : "confirmed";
+  const owner = booking.reference ? squash(booking.reference) || tidy(booking.reference) : `${tidy(booking.vendor)}:${idOfLeg(booking, booking.legs[0])}`;
+  const kinds = [
+    { kind: "cancellation", date: booking.deadlines.cancellationBy, title: "Free cancellation ends", what: "free cancellation ends on this date" },
+    { kind: "payment", date: booking.deadlines.paymentDueBy, title: "Payment due", what: "payment is due on this date" },
+  ];
+  return kinds.flatMap(({ kind, date, title, what }) =>
+    date
+      ? [
+          event(
+            booking,
+            status,
+            uid("deadline", booking.reference ? "booked" : "unbooked", owner, kind),
+            stamp,
+            allDay("DTSTART", date),
+            allDay("DTEND", shiftLocal(`${date}T00:00`, 24 * 60).slice(0, 10)),
+            `${title}: ${bookingLabel(booking)}`,
+            "",
+            `Check the booking: ${what}, so act before then. The date comes from the booking email.\n${describeBooking(booking)}`,
+          ),
+        ]
+      : [],
+  );
+}
+
 const SHUTTLE_MINUTES = 45;
 const checkInHours = (leg: Travel) => (leg.international ? 3 : 2);
 
@@ -351,6 +391,7 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
       if (leg.kind === "stay") events.push(...breakfastEvents(b, leg, stamp));
       if (leg.kind === "travel" && leg.mode === "flight") events.push(checkInBlock(b, leg, stamp));
     }
+    events.push(...deadlineEvents(b, stamp));
   }
   events.push(...shuttleEvents(trip, stamp));
   const lines = [
