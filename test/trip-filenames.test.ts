@@ -82,9 +82,18 @@ describe("trip file names", () => {
     const s = await session();
     await s.export("Tokyo 東京 Trip");
     await s.export("  tokyo   東京   TRIP ");
-    await s.export("Café 東京");
-    await s.export("Café 東京");
+    expect(s.files()).toHaveLength(1);
+    await s.export("Cafe\u0301 東京");
+    await s.export("Caf\u00e9 東京");
     expect(s.files()).toHaveLength(2);
+  });
+
+  it("gives a name with nothing readable in it at all, only emoji or punctuation, a file of its own", async () => {
+    const s = await session();
+    for (const name of ["🌴", "🏖", "!!!", "???"]) await s.export(name);
+    const files = s.files();
+    expect(files).toHaveLength(4);
+    for (const file of files) expect(file).toMatch(/^trip-[0-9a-f]{8}-2026-12-01\.ics$/);
   });
 
   it("uses only safe characters in the file name, whatever the name holds", async () => {

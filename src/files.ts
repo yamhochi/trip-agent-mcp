@@ -18,9 +18,9 @@ export function exportFolder(): string {
  * Built by the server alone from the trip name and start date; the model never supplies a path.
  *
  * The readable part is the name in lower-case ASCII, with accents folded away ("Café" reads "cafe"). A name with
- * letters or digits that have no plain form (Japanese, Arabic, Cyrillic) would lose them and could end up the same
- * as another trip's, so a short hash of the whole name is added then, and only then: names that are already plain
- * keep exactly the file name they have always had.
+ * letters or digits that have no plain form (Japanese, Arabic, Cyrillic), or with nothing readable at all (only
+ * emoji or punctuation), would lose them and could end up the same as another trip's, so a short hash of the whole
+ * name is added then, and only then: names that are already plain keep exactly the file name they have always had.
  */
 export function tripFilename(name: string, startDate: string): string {
   const unaccented = name.normalize("NFKD").replace(/\p{M}/gu, "");
@@ -31,8 +31,8 @@ export function tripFilename(name: string, startDate: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
     .replace(/-+$/, "");
-  const losesLetters = /[^\x00-\x7f]/.test(unaccented.replace(/[^\p{L}\p{N}]/gu, ""));
-  const hash = losesLetters ? `-${createHash("sha256").update(tidy(name)).digest("hex").slice(0, 8)}` : "";
+  const hasNonAsciiLetters = /[^\x00-\x7f]/.test(unaccented.replace(/[^\p{L}\p{N}]/gu, ""));
+  const hash = hasNonAsciiLetters || !slug ? `-${createHash("sha256").update(tidy(name)).digest("hex").slice(0, 8)}` : "";
   return `${slug || "trip"}${hash}-${startDate}.ics`;
 }
 
