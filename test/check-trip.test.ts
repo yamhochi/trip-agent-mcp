@@ -182,12 +182,13 @@ describe("check_trip", () => {
       expect(text).not.toContain("Broken location chain");
     });
 
-    it("flags two airports of one city, and says they may be the same city", async () => {
+    it("flags two airports of one city, and reports them as a near miss that may be the same place", async () => {
       const toNarita = flightBooking("SA400", [london, "2026-12-01T09:00", "Europe/London"], ["Tokyo Narita (NRT)", "2026-12-02T07:00", "Asia/Tokyo"]);
       const fromHaneda = flightBooking("SA401", ["Tokyo Haneda (HND)", "2026-12-02T20:00", "Asia/Tokyo"], [london, "2026-12-03T06:00", "Europe/London"]);
       const { text } = await checkTrip(trip(toNarita, fromHaneda));
       expect(text).toContain("Broken location chain");
-      expect(text).toMatch(/same city/i);
+      expect(text).toMatch(/near miss/i);
+      expect(text).toMatch(/two airports of one city/i);
     });
 
     it("does not report a missing return when a stay runs past the flight home", async () => {

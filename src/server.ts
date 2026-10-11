@@ -83,7 +83,7 @@ export function createServer(): McpServer {
     "check_trip",
     {
       description:
-        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a journey by any mode of travel, or a stay, that does not start where the previous one ended) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights; calendar placeholders never count either. Reads the trip's earlier export, if there is one, and also reports each gap recorded there that the trip now covers, and by which leg: ask the traveller to confirm before exporting, which cancels its placeholder. Changes nothing. Returns each gap in plain English: relay them to the traveller and ask how they want to fix them.",
+        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a journey by any mode of travel, or a stay, that does not start where the previous one ended) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights; calendar placeholders never count either. When a leg looks related to a gap but does not satisfy it (a flight into another airport of the same city, a stay that starts a day late), it is also reported as a near miss: that never clears the gap, so ask the traveller whether it is the same thing, and turn the answer into a corrected leg. Reads the trip's earlier export, if there is one, and also reports each gap recorded there that the trip now covers, and by which leg: ask the traveller to confirm before exporting, which cancels its placeholder. Changes nothing. Returns each gap in plain English: relay them to the traveller and ask how they want to fix them.",
       inputSchema: { trip: tripSchema },
     },
     async ({ trip }) => {
@@ -98,12 +98,16 @@ export function createServer(): McpServer {
       const text = gaps.length
         ? `${gaps.length === 1 ? "1 gap" : `${gaps.length} gaps`} found in "${trip.name}":\n${gaps.map((g) => `- ${g.message}`).join("\n")}`
         : `No gaps found in "${trip.name}".`;
+      const nearMisses = gaps.flatMap((g) => (g.nearMiss ? [g.nearMiss] : []));
+      const near = nearMisses.length
+        ? `\n\nNear misses (they do not clear any gap; ask the traveller about each, and turn the answer into a corrected leg, never a silent dismissal):\n${nearMisses.map((n) => `- ${n}`).join("\n")}`
+        : "";
       const earlier = covered.length
         ? `\n\nGaps from the earlier export that are now covered (ask the traveller to confirm before exporting, which cancels their calendar placeholders):\n${covered
             .map(({ r, by }) => `- ${describeRecorded(r)}${by ? ` is now covered by ${by}` : " is no longer a gap"}.`)
             .join("\n")}`
         : "";
-      return { content: [{ type: "text", text: text + earlier }] };
+      return { content: [{ type: "text", text: text + near + earlier }] };
     },
   );
   server.registerTool(
