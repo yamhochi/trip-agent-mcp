@@ -1,4 +1,5 @@
 import type { Leg, Trip } from "./schema.js";
+import { instantOf } from "./time.js";
 
 export type Gap = { rule: "unbooked-night" | "broken-chain" | "missing-return"; message: string };
 
@@ -11,7 +12,7 @@ function standingLegs(trip: Trip): Leg[] {
   return trip.bookings.flatMap((b) => b.legs).filter((l) => l.status === "confirmed" || l.status === "planned");
 }
 
-type Stop = { location: string; localTime: string };
+type Stop = { location: string; localTime: string; timeZone: string };
 type Journey = { label: string; from: Stop; to: Stop };
 
 /** A travel leg of any mode, as the traveller would name it: "flight JL044", "train N700", "the ferry". */
@@ -52,15 +53,15 @@ function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): 
   const cover = (from: string, to: string) => {
     for (let d = from; d < to; d = addDays(d, 1)) covered.add(d);
   };
+  let journey: Journey | undefined;
   for (const leg of legs) {
     if (leg.kind === "stay") {
       cover(leg.checkIn, leg.checkOut);
       if (leg.checkOut > last) last = leg.checkOut;
-    } else if (journeyOf(leg)) {
+    } else if ((journey = journeyOf(leg))) {
       // A night spent in the air, or on a train, is not unbooked.
-      const { from, to } = journeyOf(leg)!;
-      cover(dayOf(from.localTime), dayOf(to.localTime));
-      if (dayOf(to.localTime) > last) last = dayOf(to.localTime);
+      cover(dayOf(journey.from.localTime), dayOf(journey.to.localTime));
+      if (dayOf(journey.to.localTime) > last) last = dayOf(journey.to.localTime);
     } else if (leg.kind === "activity" && !returnedHome && dayOf(leg.end) > last) {
       // An activity shows the traveller is still away, but not once they are home: a dinner after the flight home is not a night away.
       last = dayOf(leg.end);
@@ -91,16 +92,22 @@ function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): 
 }
 
 /** One step of the trip in time order: a journey, or a stay. */
-type Step = { at: string; arrives: string; leaves: string; endsWith: string; startsWith: string; stay: boolean };
+type Step = { at: number; arrives: string; leaves: string; endsWith: string; startsWith: string; stay: boolean };
 
 function steps(legs: Leg[]): Step[] {
+  const stops = legs.flatMap((leg) => {
+    const journey = journeyOf(leg);
+    return journey ? [journey.from, journey.to] : [];
+  });
+  // A stay has no time zone of its own; the zone of a journey that starts or ends in the same area is the best guide, and UTC is the fallback.
+  const zoneAt = (place: string) => stops.find((stop) => sameArea(stop.location, place))?.timeZone ?? "UTC";
   return legs
     .flatMap((leg): Step[] => {
       const journey = journeyOf(leg);
       if (journey) {
         return [
           {
-            at: journey.from.localTime,
+            at: instantOf(journey.from.localTime, journey.from.timeZone),
             leaves: journey.from.location,
             arrives: journey.to.location,
             startsWith: `${journey.label} leaves from ${journey.from.location}`,
@@ -113,7 +120,7 @@ function steps(legs: Leg[]): Step[] {
         // A stay places the traveller from the day they check in; the end of that day keeps a same-day journey before it.
         return [
           {
-            at: `${leg.checkIn}T23:59`,
+            at: instantOf(`${leg.checkIn}T23:59`, zoneAt(leg.location)),
             leaves: leg.location,
             arrives: leg.location,
             startsWith: `the next stay, ${leg.property}, is in ${leg.location}`,
@@ -124,7 +131,7 @@ function steps(legs: Leg[]): Step[] {
       }
       return [];
     })
-    .sort((a, b) => a.at.localeCompare(b.at));
+    .sort((a, b) => a.at - b.at);
 }
 
 function brokenChains(legs: Leg[]): Gap[] {
@@ -147,15 +154,19 @@ function brokenChains(legs: Leg[]): Gap[] {
   return gaps;
 }
 
-/** Where the traveller is at the end: the latest flight arrival, or the latest stay (from its check-in, so a flight home before check-out still counts). */
-function finalPosition(legs: Leg[]): { at: string; where: string } | undefined {
+/** Where the traveller is at the end: the latest arrival of any journey, or the latest stay (from its check-in, so a journey home before check-out still counts). */
+function finalPosition(legs: Leg[]): { at: number; where: string } | undefined {
+  const stops = legs.flatMap((l) => {
+    const journey = journeyOf(l);
+    return journey ? [journey.from, journey.to] : [];
+  });
+  const zoneFor = (place: string) => stops.find((stop) => sameArea(stop.location, place))?.timeZone ?? "UTC";
   const positions = legs.flatMap((l) => {
     const journey = journeyOf(l);
-    if (journey) return [{ at: journey.to.localTime, where: journey.to.location }];
-    // From check-in: a journey home before check-out still ends the trip.
-    return l.kind === "stay" ? [{ at: `${l.checkIn}T00:00`, where: l.location }] : [];
+    if (journey) return [{ at: instantOf(journey.to.localTime, journey.to.timeZone), where: journey.to.location }];
+    return l.kind === "stay" ? [{ at: instantOf(`${l.checkIn}T00:00`, zoneFor(l.location)), where: l.location }] : [];
   });
-  return positions.sort((a, b) => a.at.localeCompare(b.at)).at(-1);
+  return positions.sort((a, b) => a.at - b.at).at(-1);
 }
 
 function missingReturn(legs: Leg[], homeCity: string): Gap[] {

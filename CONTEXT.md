@@ -16,6 +16,10 @@ _Avoid_: Reservation, order
 One segment of a trip: a journey from one place to another by some mode, one stay, or one activity. Movement legs and lodging legs are both legs. A flight is a journey whose mode is flight.
 _Avoid_: Segment, item
 
+**Journey**:
+The movement a travel leg makes from one place to another: a place, a local time and a time zone at each end, a mode, and sometimes a number such as a flight number.
+_Avoid_: Trip (a trip is the whole thing), route
+
 **Mode**:
 How a journey moves the traveller: flight, train, ferry, bus, car, or other. A journey may carry a number that names it (a flight number, a train number) or none.
 _Avoid_: Transport type, vehicle

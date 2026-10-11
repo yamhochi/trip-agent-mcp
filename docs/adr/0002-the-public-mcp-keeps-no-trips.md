@@ -12,6 +12,6 @@ This partly supersedes ADR 0001. The no-database and own-repository decisions st
 ## Consequences
 
 - A manual edit ("dinner at 8pm") lasts only for the conversation it was made in. A new conversation rebuilds the trip from email, starting at the bookmark.
-- Event identity cannot be looked up, so it is derived from facts that do not change (the booking reference plus the flight number or property), never from times or dates.
+- Event identity cannot be looked up, so it is derived from facts that do not change (the booking reference plus the mode and number of a journey, or the property of a stay), never from times or dates.
 - Anything missing from a re-export, such as a cancelled leg or a gap that has since been fixed, has to be written out as a cancelled event, because importing a file never removes events. Fixed gaps are known only from the ids recorded in the file.
 - The server must run on the traveller's own computer, because that is where the file is written.

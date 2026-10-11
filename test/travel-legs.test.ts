@@ -205,3 +205,18 @@ describe("what Claude is told about travel legs", () => {
     expect(tools.find((t) => t.name === "check_trip")!.description).toMatch(/any (mode|kind) of travel|train/i);
   });
 });
+
+describe("ordering across time zones", () => {
+  it("orders journeys by when they really happen, not by the clock on the wall", async () => {
+    // Tokyo to Los Angeles lands on the clock before it left; Los Angeles to New York then leaves at 17:00 local.
+    const toLosAngeles = journey("flight", "TL1", ["Tokyo", "2026-12-01T22:00"], ["Los Angeles", "2026-12-01T15:00"], ["Asia/Tokyo", "America/Los_Angeles"]);
+    const toNewYork = journey("flight", "TL2", ["Los Angeles", "2026-12-01T17:00"], ["New York", "2026-12-02T01:00"], ["America/Los_Angeles", "America/New_York"]);
+    const backToTokyo = journey("flight", "TL3", ["New York", "2026-12-04T10:00"], ["Tokyo", "2026-12-05T14:00"], ["America/New_York", "Asia/Tokyo"]);
+    const text = await (await session()).check({
+      ...trip(toLosAngeles, toNewYork, stayAt("Manhattan Inn", "New York", "2026-12-02", "2026-12-04"), backToTokyo),
+      homeCity: "Tokyo",
+    });
+    expect(text).not.toContain("Broken location chain");
+    expect(text).not.toContain("Missing return");
+  });
+});
