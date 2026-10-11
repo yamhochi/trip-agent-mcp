@@ -1,7 +1,8 @@
 # Builds and tests the package when a version tag is pushed (or when started by hand), dry-run publishes it, and
 # builds the Claude Desktop extension (.mcpb), which is attached to the GitHub release on a tag.
-# The real publish needs the maintainer's npm credentials, so it stays off until the repository variable
-# PUBLISH_TO_NPM is set to "true" and a secret NPM_TOKEN exists.
+# The real publish uses npm's trusted publishing: GitHub proves to npm which repository and workflow this is, and
+# npm has been told on npmjs.com to trust `release.yml` of this repository, so no token is stored anywhere. It stays
+# off until the repository variable PUBLISH_TO_NPM is set to "true".
 name: Release
 
 on:
@@ -95,10 +96,11 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
+      # Trusted publishing needs npm 11.5.1 or later; the one that comes with Node 22 is older.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
       - name: Publish (a prerelease version such as 1.0.0-rc.1 goes out under the "next" tag, not "latest")
         run: |
           version="$(node -p "require('./package.json').version")"
           case "$version" in *-*) tag=next ;; *) tag=latest ;; esac
           npm publish --access public --provenance --tag "$tag"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
