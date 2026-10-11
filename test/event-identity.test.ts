@@ -216,4 +216,28 @@ describe("event identity", () => {
     expect(all).toContain(`LOCATION:${escaped}`);
     expect(all).toContain(`SUMMARY:Activity: ${escaped}`);
   });
+
+  it("keeps every id when the reference, flight number or name is only written differently", async () => {
+    const e = await exporter();
+    const flight = oneFlightTrip.bookings[0].legs[0];
+    const stay = hotelBooking.legs[0];
+    const trip = (reference: string, flightNumber: string, property: string) =>
+      tripWith(
+        { ...oneFlightTrip.bookings[0], reference, legs: [{ ...flight, flightNumber }] },
+        { ...hotelBooking, reference: "HTL789", legs: [{ ...stay, property }] },
+      );
+    const original = idsBySummary(await e.export(trip("ABC123", "JL044", "Sample Hotel Tokyo")));
+    const rewritten = idsBySummary(await e.export(trip(" abc-123 ", "jl 044", "  sample   HOTEL tokyo ")));
+    // The titles differ with the wording, so compare the ids in the order the events were written.
+    expect([...rewritten.values()]).toEqual([...original.values()]);
+  });
+
+  it("still gives a different id to a different flight number or property after tidying the wording", async () => {
+    const e = await exporter();
+    const flight = oneFlightTrip.bookings[0].legs[0];
+    const trip = (flightNumber: string) => tripWith({ ...oneFlightTrip.bookings[0], legs: [{ ...flight, flightNumber }] });
+    const original = [...idsBySummary(await e.export(trip("JL044"))).values()];
+    const other = [...idsBySummary(await e.export(trip("JL 045"))).values()];
+    expect(other).not.toEqual(original);
+  });
 });

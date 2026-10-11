@@ -16,6 +16,17 @@ export function createServer(): McpServer {
       inputSchema: { trip: tripSchema },
     },
     async ({ trip }) => {
+      // A calendar file needs at least one event, and an empty one would overwrite a good earlier export.
+      if (trip.bookings.every((b) => b.legs.every((l) => l.status === "idea"))) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Nothing was exported: every leg in "${trip.name}" is still an idea, and ideas are not written to the calendar. Mark the legs the traveller has decided on as planned or confirmed, then export again. Any earlier file for this trip was left as it was.`,
+            },
+          ],
+        };
+      }
       const calendar = buildCalendar(trip);
       try {
         const { path, similar } = await writeTripFile(trip.name, trip.startDate, calendar);

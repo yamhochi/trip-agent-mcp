@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { dinnerBooking, hotelBooking, oneFlightTrip } from "./samples.js";
-import { makeHome, startServer } from "./harness.js";
+import { makeHome, startServer, textOf } from "./harness.js";
 
 const open: { close: () => Promise<void> }[] = [];
 afterEach(async () => {
@@ -80,11 +80,26 @@ describe("confirmed, planned and cancelled legs", () => {
     expect(ics!.match(/BEGIN:VEVENT/g)).toHaveLength(3);
   });
 
-  it("exports a valid empty calendar when every leg is an idea", async () => {
+  it("writes nothing, and says why, when every leg is an idea", async () => {
+    // A calendar file needs at least one event to be valid, so there is nothing to write.
     const { result, ics } = await exportTrip(trip(ideaDinner));
     expect(result.isError).toBeFalsy();
-    expect(ics).not.toContain("BEGIN:VEVENT");
-    expect(ics).toContain("END:VCALENDAR");
+    expect(textOf(result)).toMatch(/nothing was exported/i);
+    expect(textOf(result)).toMatch(/idea/i);
+    expect(ics).toBeUndefined();
+  });
+
+  it("leaves an earlier export untouched when a later one has only ideas", async () => {
+    const dir = join(makeHome(), "out");
+    const server = await startServer({ TRIP_AGENT_DIR: dir });
+    open.push(server);
+    const path = join(dir, "sample-japan-trip-2026-12-01.ics");
+    await server.client.callTool({ name: "export_trip", arguments: { trip: trip(hotelBooking) } });
+    const before = readFileSync(path, "utf8");
+    const result = await server.client.callTool({ name: "export_trip", arguments: { trip: trip(ideaDinner) } });
+    expect(result.isError).toBeFalsy();
+    expect(readFileSync(path, "utf8")).toBe(before);
+    expect(before).toContain("BEGIN:VEVENT");
   });
 
   it("rejects a status it does not know", async () => {

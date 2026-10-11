@@ -97,13 +97,21 @@ function uid(...facts: string[]): string {
 
 type Booking = Trip["bookings"][number];
 
+const squash = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]/g, "");
+const tidy = (text: string) => text.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+
 /**
  * A leg's identity is a fingerprint of facts that do not change when a booking is amended: the
- * booking reference plus the flight number or property, never a time. A leg with no reference
- * falls back to its kind, name and original date, so moving it to another day makes a new event.
+ * booking reference plus the flight number or property, never a time. Claude re-reads the emails
+ * each time and may write the same fact slightly differently ("abc-123", "JL 044", extra spaces),
+ * so each fact is tidied first: references and flight numbers keep only letters and digits, names
+ * ignore case and spacing. A leg with no reference falls back to its kind, name and original date,
+ * so moving it to another day makes a new event.
  */
 function legId(booking: Booking, kind: Leg["kind"], name: string, date: string): string {
-  return booking.reference ? uid("booked", booking.reference, kind, name) : uid("unbooked", kind, name, date);
+  const fact = kind === "flight" ? squash(name) : tidy(name);
+  if (!booking.reference) return uid("unbooked", kind, fact, date);
+  return uid("booked", squash(booking.reference) || tidy(booking.reference), kind, fact);
 }
 
 /** The last two characters, or nothing at all for a code too short to show any of without giving it away. */
