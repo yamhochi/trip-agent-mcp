@@ -33,7 +33,7 @@ A date on a booking by which the traveller must act: free cancellation ends, or 
 _Avoid_: Reminder, cut-off
 
 **Gap**:
-Something a trip is missing, found by plain rules: an unbooked night, a broken location chain, a missing return. It appears on the calendar as a placeholder until it is fixed.
+Something a trip is missing, found by plain rules: an unbooked night, a broken location chain, a missing return. It appears on the calendar as a tentative placeholder event until it is fixed, then as a cancelled one. A placeholder is not a leg and never counts as coverage.
 _Avoid_: Warning, issue
 
 **Idea**:

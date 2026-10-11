@@ -19,7 +19,13 @@ async function exportTrip(trip: unknown) {
 }
 
 const unfold = (ics: string) => ics.replace(/\r\n /g, "");
-const uids = (ics: string) => [...ics.matchAll(/^UID:(.*)\r$/gm)].map((m) => m[1]);
+/** The ids of the events the legs make; gap placeholders are tested on their own. */
+const uids = (ics: string) =>
+  ics
+    .split("BEGIN:VEVENT\r\n")
+    .slice(1)
+    .filter((chunk) => !chunk.includes("SUMMARY:Missing:"))
+    .map((chunk) => chunk.match(/^UID:(.*)\r$/m)![1]);
 const withStatus = (booking: { legs: object[] }, status: string) => ({ ...booking, legs: [{ ...booking.legs[0], status }] });
 const trip = (...bookings: object[]) => ({ ...oneFlightTrip, bookings });
 
@@ -78,7 +84,7 @@ describe("confirmed, planned and cancelled legs", () => {
     expect(ics).not.toContain("Sample Ramen");
     expect(ics).not.toContain("Pacific/Auckland");
     // The flight and its check-in block, the planned hotel and the cancelled dinner; the idea is left out.
-    expect(ics!.match(/BEGIN:VEVENT/g)).toHaveLength(4);
+    expect(ics!.match(/^SUMMARY:(?!Missing:)/gm)).toHaveLength(4);
   });
 
   it("writes nothing, and says why, when every leg is an idea", async () => {

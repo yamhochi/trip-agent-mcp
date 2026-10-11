@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -24,6 +24,15 @@ export function tripFilename(name: string, startDate: string): string {
 /** Where a trip's calendar file lives, whether or not it has been written yet. */
 export function tripFilePath(name: string, startDate: string): string {
   return join(exportFolder(), tripFilename(name, startDate));
+}
+
+/** The file this server last exported for a trip, or nothing when there is none (or it cannot be read). */
+export async function readTripFile(name: string, startDate: string): Promise<string | undefined> {
+  try {
+    return await readFile(tripFilePath(name, startDate), "utf8");
+  } catch {
+    return undefined;
+  }
 }
 
 export interface WrittenTripFile {

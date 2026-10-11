@@ -116,9 +116,10 @@ describe("cancellation and payment deadlines", () => {
   it("gives every event, deadlines included, its own id", async () => {
     const other = { ...hotel({ reference: "OTH111" }), legs: [{ ...hotelBooking.legs[0], property: "Other Hotel" }] };
     const { ics } = await (await exporter()).export(trip(hotel(), other));
-    const ids = eventsIn(ics!).map((e) => e.uid);
-    expect(ids).toHaveLength(6);
-    expect(new Set(ids).size).toBe(6);
+    const all = eventsIn(ics!);
+    // Two stays, four deadlines, and the gap placeholders the trip also has.
+    expect(all.filter((e) => !e.summary.startsWith("Missing:"))).toHaveLength(6);
+    expect(new Set(all.map((e) => e.uid)).size).toBe(all.length);
   });
 
   it("cancels the deadlines, with the same ids, when every leg of the booking is cancelled", async () => {

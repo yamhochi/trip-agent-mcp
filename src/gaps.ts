@@ -1,8 +1,16 @@
 import type { Leg, Trip } from "./schema.js";
 import { instantOf } from "./time.js";
-import { mayBeSameCity, sameArea, samePlace } from "./places.js";
+import { mayBeSameCity, sameArea, samePlace, tidy } from "./places.js";
 
-export type Gap = { rule: "unbooked-night" | "broken-chain" | "missing-return"; message: string };
+export type GapRule = "unbooked-night" | "broken-chain" | "missing-return";
+
+/**
+ * Something the trip is missing. `message` is for Claude to relay; `title`, `start` and `end` (the day after
+ * the last day, as an all-day event ends) are for the calendar placeholder; `facts` are what the gap's identity
+ * is made of, never a time of day, so the same gap has the same id on every export. `from` and `to` are the
+ * two places of a broken chain, or the home city of a missing return, so that the leg that later covers it can be found.
+ */
+export type Gap = { rule: GapRule; message: string; title: string; start: string; end: string; facts: string[]; from?: string; to?: string };
 
 const MS_PER_DAY = 86_400_000;
 const dayOf = (localTime: string) => localTime.slice(0, 10);
@@ -52,6 +60,10 @@ function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): 
     const nights = (Date.parse(runEnd) - Date.parse(runStart)) / MS_PER_DAY + 1;
     gaps.push({
       rule: "unbooked-night",
+      title: "Missing: no lodging booked",
+      start: runStart,
+      end: addDays(runEnd, 1),
+      facts: [runStart],
       message:
         nights === 1
           ? `Unbooked night: nothing is booked or planned for the night of ${runStart}.`
@@ -70,7 +82,7 @@ function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): 
 }
 
 /** One step of the trip in time order: a journey, or a stay. */
-type Step = { at: number; arrives: string; leaves: string; endsWith: string; startsWith: string; stay: boolean };
+type Step = { at: number; day: string; arrives: string; leaves: string; endsWith: string; startsWith: string; stay: boolean };
 
 function steps(legs: Leg[]): Step[] {
   const stops = legs.flatMap((leg) => {
@@ -86,6 +98,7 @@ function steps(legs: Leg[]): Step[] {
         return [
           {
             at: instantOf(journey.from.localTime, journey.from.timeZone),
+            day: dayOf(journey.from.localTime),
             leaves: journey.from.location,
             arrives: journey.to.location,
             startsWith: `${journey.label} leaves from ${journey.from.location}`,
@@ -99,6 +112,7 @@ function steps(legs: Leg[]): Step[] {
         return [
           {
             at: instantOf(`${leg.checkIn}T23:59`, zoneAt(leg.location)),
+            day: leg.checkIn,
             leaves: leg.location,
             arrives: leg.location,
             startsWith: `the next stay, ${leg.property}, is in ${leg.location}`,
@@ -126,6 +140,12 @@ function brokenChains(legs: Leg[]): Gap[] {
         : "";
     gaps.push({
       rule: "broken-chain",
+      title: `Missing: no way to get from ${before.arrives} to ${next.leaves}`,
+      start: next.day,
+      end: addDays(next.day, 1),
+      facts: [tidy(before.arrives), tidy(next.leaves)],
+      from: before.arrives,
+      to: next.leaves,
       message: `Broken location chain: ${before.endsWith}, but ${next.startsWith}. Nothing is booked or planned to get from one to the other.${maybe}`,
     });
   }
@@ -133,7 +153,7 @@ function brokenChains(legs: Leg[]): Gap[] {
 }
 
 /** Where the traveller is at the end: the latest arrival of any journey, or the latest stay (from its check-in, so a journey home before check-out still counts). */
-function finalPosition(legs: Leg[]): { at: number; where: string } | undefined {
+function finalPosition(legs: Leg[]): { at: number; day: string; where: string } | undefined {
   const stops = legs.flatMap((l) => {
     const journey = journeyOf(l);
     return journey ? [journey.from, journey.to] : [];
@@ -141,8 +161,8 @@ function finalPosition(legs: Leg[]): { at: number; where: string } | undefined {
   const zoneFor = (place: string) => stops.find((stop) => sameArea(stop.location, place))?.timeZone ?? "UTC";
   const positions = legs.flatMap((l) => {
     const journey = journeyOf(l);
-    if (journey) return [{ at: instantOf(journey.to.localTime, journey.to.timeZone), where: journey.to.location }];
-    return l.kind === "stay" ? [{ at: instantOf(`${l.checkIn}T00:00`, zoneFor(l.location)), where: l.location }] : [];
+    if (journey) return [{ at: instantOf(journey.to.localTime, journey.to.timeZone), day: dayOf(journey.to.localTime), where: journey.to.location }];
+    return l.kind === "stay" ? [{ at: instantOf(`${l.checkIn}T00:00`, zoneFor(l.location)), day: l.checkIn, where: l.location }] : [];
   });
   return positions.sort((a, b) => a.at - b.at).at(-1);
 }
@@ -153,6 +173,11 @@ function missingReturn(legs: Leg[], homeCity: string): Gap[] {
   return [
     {
       rule: "missing-return",
+      title: `Missing: no way back to ${homeCity}`,
+      start: final.day,
+      end: addDays(final.day, 1),
+      facts: [tidy(homeCity)],
+      to: homeCity,
       message: `Missing return: the trip ends in ${final.where}, and nothing is booked or planned to take the traveller back to ${homeCity}.`,
     },
   ];
@@ -168,4 +193,24 @@ export function findGaps(trip: Trip): Gap[] {
 
 export function hasStandingLegs(trip: Trip): boolean {
   return standingLegs(trip).length > 0;
+}
+
+/** What an earlier export recorded about a gap, enough to find the leg that has since covered it. */
+export type RecordedGap = { rule: GapRule; id: string; start: string; from?: string; to?: string };
+
+/** The standing leg that now covers a recorded gap, named as the traveller would: "flight SA999", "the stay at Sample Hotel". */
+export function coveringLeg(trip: Trip, gap: RecordedGap): string | undefined {
+  const legs = standingLegs(trip);
+  for (const leg of legs) {
+    const journey = journeyOf(leg);
+    if (gap.rule === "unbooked-night") {
+      if (leg.kind === "stay" && leg.checkIn <= gap.start && gap.start < leg.checkOut) return `the stay at ${leg.property}`;
+      if (journey && dayOf(journey.from.localTime) <= gap.start && gap.start < dayOf(journey.to.localTime)) return journey.label;
+    } else if (journey && gap.rule === "broken-chain") {
+      if (gap.from && gap.to && sameArea(journey.from.location, gap.from) && sameArea(journey.to.location, gap.to)) return journey.label;
+    } else if (journey && gap.rule === "missing-return") {
+      if (gap.to && samePlace(journey.to.location, gap.to) && dayOf(journey.to.localTime) >= gap.start) return journey.label;
+    }
+  }
+  return undefined;
 }

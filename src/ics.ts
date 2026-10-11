@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Activity, Leg, Stay, Travel, Trip } from "./schema.js";
-import { sameArea } from "./places.js";
+import { sameArea, tidy } from "./places.js";
+import { findGaps, type Gap, type RecordedGap } from "./gaps.js";
+import { cancelledEvents, readRecord, recordLine } from "./gap-record.js";
 import { instantOf, shiftLocal, wallClockAsUtc, zoneAt } from "./time.js";
 
 const CRLF = "\r\n";
@@ -75,7 +77,6 @@ function uid(...facts: string[]): string {
 type Booking = Trip["bookings"][number];
 
 const squash = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]/g, "");
-const tidy = (text: string) => text.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 
 /**
  * A leg's identity is a fingerprint of facts that do not change when a booking is amended: the
@@ -376,7 +377,41 @@ function zonedTimes(leg: Leg): { timeZone: string; localTime: string }[] {
   }
 }
 
-export function buildCalendar(trip: Trip, now: Date = new Date()): string {
+/**
+ * A tentative all-day placeholder for each gap, and for each gap an earlier export recorded that is gone,
+ * the earlier file's own event written out cancelled. A placeholder is not a leg: it is made from the gaps
+ * and never read back as coverage.
+ */
+/** A gap's id, from its kind and the facts that identify it (the night or the two places), never a time. */
+export const gapId = (gap: Gap) => uid("gap", gap.rule, ...gap.facts).split("@")[0];
+
+function gapEvents(trip: Trip, previous: string | undefined, stamp: string) {
+  const gaps = findGaps(trip).map((gap) => ({ gap, id: gapId(gap) }));
+  const now = new Set(gaps.map((g) => g.id));
+  const gone = readRecord(previous).filter((r) => !now.has(r.id));
+  const placeholders = gaps.map(({ gap, id }) => [
+    "BEGIN:VEVENT",
+    `UID:${id}@trip-agent-mcp`,
+    `DTSTAMP:${stamp}`,
+    allDay("DTSTART", gap.start),
+    allDay("DTEND", gap.end),
+    `SUMMARY:${escapeText(gap.title)}`,
+    `DESCRIPTION:${escapeText(`${gap.message} This placeholder is cleared (cancelled) once the gap is fixed.`)}`,
+    "STATUS:TENTATIVE",
+    "END:VEVENT",
+  ]);
+  const record: RecordedGap[] = gaps.map(({ gap, id }) => ({ rule: gap.rule, id, start: gap.start, ...(gap.from ? { from: gap.from } : {}), ...(gap.to ? { to: gap.to } : {}) }));
+  return { events: [...placeholders, ...(previous ? cancelledEvents(previous, gone.map((g) => g.id), stamp) : [])], record, added: placeholders.length, cancelled: gone.length };
+}
+
+export interface BuiltCalendar {
+  text: string;
+  /** Gap placeholders in the file, and earlier ones written out cancelled. */
+  placeholders: number;
+  cancelled: number;
+}
+
+export function buildCalendar(trip: Trip, now: Date = new Date(), previous?: string): BuiltCalendar {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const events: string[][] = [];
   const zones = new Map<string, string[]>();
@@ -394,15 +429,18 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
     events.push(...deadlineEvents(b, stamp));
   }
   events.push(...shuttleEvents(trip, stamp));
+  const gapped = gapEvents(trip, previous, stamp);
+  events.push(...gapped.events);
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//trip-agent-mcp//EN",
     "CALSCALE:GREGORIAN",
     `X-WR-CALNAME:${escapeText(trip.name)}`,
+    recordLine(gapped.record),
     ...[...zones.keys()].sort().flatMap((k) => zones.get(k)!),
     ...events.flat(),
     "END:VCALENDAR",
   ];
-  return lines.map(fold).join(CRLF) + CRLF;
+  return { text: lines.map(fold).join(CRLF) + CRLF, placeholders: gapped.added, cancelled: gapped.cancelled };
 }
