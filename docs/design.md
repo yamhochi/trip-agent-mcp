@@ -33,10 +33,15 @@ A local MCP server. The traveller's own Claude reads their mailbox through the t
 14. **Testing.** One seam: the tool interface. Sample trips go in, and the results and known-good `.ics` files are checked. A manual test imports the file into a real calendar app twice and looks for duplicates.
 15. **Reminders about deadlines** are gentle guidance in the instructions, not a rule or a tool.
 
+## Verified
+
+- **Writing to `Documents` on macOS (checked 2026-10-11, issue #7).** Claude Desktop launched the server (node 24 via nvm, through Claude's `disclaimer` helper) and `export_trip` created `~/Documents/trip-agent/` and wrote the `.ics` with no macOS prompt and no error, even with Documents switched off for that `node` in Privacy & Security → Files & Folders. One machine and one Node install: macOS did not enforce the denial and we do not know why (the Node setup on that machine may have been unusual), so a fresh machine could behave differently. Not checked: a Documents folder redirected to iCloud (none available), and Windows including OneDrive.
+- **Side effects seen on the same machine.** Resetting the Documents permission (`tccutil reset SystemPolicyDocumentsFolder`) made other apps ask again, and a denied `node` made a different MCP server time out and disconnect, with no clear error.
+
 ## To verify early
 
 - Calendar apps ignore the custom bookmark property, honour cancelled events and match events by id when a file is imported again.
-- Claude Desktop can write to `Documents` without extra permission, including with a redirected Documents folder.
+- Claude Desktop can write to `Documents` without extra permission on Windows, and with a redirected Documents folder (iCloud, OneDrive). Checked on macOS only; see **Verified**.
 - The traveller's mail connector offers a date filter and a message link.
 - The install commands for each client.
 
