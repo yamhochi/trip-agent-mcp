@@ -51,10 +51,16 @@ function lateStayNearMiss(legs: Leg[], night: string): string | undefined {
     if (journey && dayOf(journey.to.localTime) === night) return [journey.to.location];
     return leg.kind === "stay" && leg.checkOut === night ? [leg.location] : [];
   });
-  const stay = legs.find((leg) => leg.kind === "stay" && leg.checkIn === addDays(night, 1) && there.some((place) => sameArea(leg.location, place)));
-  if (stay?.kind !== "stay") return undefined;
-  const place = there.find((p) => sameArea(stay.location, p));
-  return `Near miss for the unbooked night of ${night}: the stay at ${stay.property} in ${stay.location} starts on ${stay.checkIn}, a day after that night, and the traveller is already in ${place} on ${night}. This does not clear the gap: ask the traveller whether the stay should start a day earlier, and if so, correct its check-in date.`;
+  for (const stay of legs) {
+    if (stay.kind !== "stay" || stay.checkIn !== addDays(night, 1)) continue;
+    const place = there.find((p) => sameArea(stay.location, p));
+    if (place) return nearMissLateStay(stay.property, stay.location, stay.checkIn, place, night);
+  }
+  return undefined;
+}
+
+function nearMissLateStay(property: string, location: string, checkIn: string, place: string, night: string): string {
+  return `Near miss for the unbooked night of ${night}: the stay at ${property} in ${location} starts on ${checkIn}, a day after that night, and the traveller is already in ${place} on ${night}. This does not clear the gap: ask the traveller whether the stay should start a day earlier, and if so, correct its check-in date.`;
 }
 
 function unbookedNights(legs: Leg[], startDate: string, returnedHome: boolean): Gap[] {

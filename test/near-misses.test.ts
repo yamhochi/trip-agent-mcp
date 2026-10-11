@@ -106,6 +106,14 @@ describe("near misses in check_trip", () => {
     expect(await s.check(trip(landsInTokyo, stayBooking("Sample Hotel Tokyo", "Tokyo", "2026-12-02", "2026-12-05"), goHome))).toBe('No gaps found in "Sample Japan Trip".');
   });
 
+  it("reports no near miss for two places that have no words to compare", async () => {
+    const toNowhere = flightBooking("SA700", [london, "2026-12-01T09:00", "Europe/London"], ["???", "2026-12-02T07:00", "Asia/Tokyo"]);
+    const fromElsewhere = flightBooking("SA701", ["!!!", "2026-12-02T20:00", "Asia/Tokyo"], [london, "2026-12-03T06:00", "Europe/London"]);
+    const text = await (await session()).check(trip(toNowhere, fromElsewhere));
+    expect(text).toContain("Broken location chain");
+    expect(text).not.toMatch(/near miss/i);
+  });
+
   it("never clears a gap: the gap is still reported, and an export keeps its placeholder tentative", async () => {
     const s = await session();
     const placeholderStatus = (ics: string) => ics.split("BEGIN:VEVENT\r\n").filter((c) => c.includes("SUMMARY:Missing:")).map((c) => c.match(/^STATUS:(.*)\r$/m)![1]);
