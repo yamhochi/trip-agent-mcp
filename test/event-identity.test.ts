@@ -33,7 +33,8 @@ function idsBySummary(ics: string): Map<string, string> {
   let uid = "";
   for (const line of lines(ics)) {
     if (line.startsWith("UID:")) uid = line.slice(4);
-    if (line.startsWith("SUMMARY:")) ids.set(line.slice(8), uid);
+    // Gap placeholders have their own tests; these are the events the legs make.
+    if (line.startsWith("SUMMARY:") && !line.startsWith("SUMMARY:Missing:")) ids.set(line.slice(8), uid);
   }
   return ids;
 }
@@ -150,8 +151,9 @@ describe("event identity", () => {
     const ics = await e.export(trip);
     const all = lines(ics);
     // Two events and one calendar, however hostile the text.
-    expect(all.filter((l) => l === "BEGIN:VEVENT")).toHaveLength(2);
-    expect(all.filter((l) => l === "END:VEVENT")).toHaveLength(2);
+    // Two events from the legs, however hostile the text, and as many ends as beginnings.
+    expect(all.filter((l) => l.startsWith("SUMMARY:") && !l.startsWith("SUMMARY:Missing:"))).toHaveLength(2);
+    expect(all.filter((l) => l === "BEGIN:VEVENT")).toHaveLength(all.filter((l) => l === "END:VEVENT").length);
     expect(all.filter((l) => l === "BEGIN:VCALENDAR")).toHaveLength(1);
     expect(all.filter((l) => l === "END:VCALENDAR")).toHaveLength(1);
     expect(all.filter((l) => l.startsWith("UID:evil"))).toHaveLength(0);

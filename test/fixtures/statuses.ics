@@ -3,6 +3,7 @@ VERSION:2.0
 PRODID:-//trip-agent-mcp//EN
 CALSCALE:GREGORIAN
 X-WR-CALNAME:Sample Japan Trip
+X-TRIP-AGENT-GAPS;VERSION=1:%5B%7B%22rule%22%3A%22missing-return%22%2C%22id%22%3A%2245b7340095b96953d89d0e1bf3def453%22%2C%22start%22%3A%222026-12-02%22%2C%22to%22%3A%22London%22%7D%5D
 BEGIN:VTIMEZONE
 TZID:Asia/Tokyo
 BEGIN:STANDARD
@@ -60,5 +61,14 @@ SUMMARY:Activity: Dinner at Sample Sushi
 LOCATION:Shibuya\, Tokyo
 DESCRIPTION:Sample Sushi booking\, code ending 56
 STATUS:CANCELLED
+END:VEVENT
+BEGIN:VEVENT
+UID:45b7340095b96953d89d0e1bf3def453@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;VALUE=DATE:20261202
+DTEND;VALUE=DATE:20261203
+SUMMARY:Missing: no way back to London
+DESCRIPTION:Missing return: the trip ends in Tokyo Haneda (HND)\, and nothing is booked or planned to take the traveller back to London. This placeholder is cleared (cancelled) once the gap is fixed.
+STATUS:TENTATIVE
 END:VEVENT
 END:VCALENDAR
