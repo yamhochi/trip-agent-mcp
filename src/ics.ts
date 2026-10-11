@@ -106,9 +106,12 @@ function legId(booking: Booking, kind: Leg["kind"], name: string, date: string):
   return booking.reference ? uid("booked", booking.reference, kind, name) : uid("unbooked", kind, name, date);
 }
 
+/** The last two characters, or nothing at all for a code too short to show any of without giving it away. */
+const maskedCode = (reference: string) => (reference.length > 2 ? reference.slice(-2) : "hidden");
+
 function describeBooking(booking: Booking): string {
   const line = booking.reference
-    ? `${booking.vendor} booking, code ending ${booking.reference.slice(-2)}`
+    ? `${booking.vendor} booking, code ending ${maskedCode(booking.reference)}`
     : `${booking.vendor} (no booking reference)`;
   return booking.note ? `${line}\n${booking.note}` : line;
 }

@@ -18,11 +18,24 @@ const luhn = (digits: string) => {
   return sum % 10 === 0;
 };
 
+// Try every run of whole digit groups (split by spaces or dashes) of 13-19 digits, so a card number
+// is found after other digits ("Room 12 4111 ...") without checking arbitrary slices by chance.
 const hasCardNumber = (text: string) =>
-  (text.match(/\d(?:[ -]?\d){12,18}/g) ?? []).some((run) => luhn(run.replace(/\D/g, "")));
+  (text.match(/\d+(?:[ -]\d+)*/g) ?? []).some((run) => {
+    const groups = run.split(/[ -]/);
+    for (let from = 0; from < groups.length; from++) {
+      let digits = "";
+      for (let to = from; to < groups.length; to++) {
+        digits += groups[to];
+        if (digits.length > 19) break;
+        if (digits.length >= 13 && luhn(digits)) return true;
+      }
+    }
+    return false;
+  });
 
 // An identifier is a run of at least six letters or digits that includes a digit, after wording that names it.
-const identifier = String.raw`[^\n]{0,25}?\b(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{5,}\b`;
+const identifier = String.raw`[^\n]{0,25}?\b(?=[A-Z]*\d)[A-Z0-9]{6,}\b`;
 const near = (wording: string) => new RegExp(`(?:${wording})${identifier}`, "i");
 
 const rules: { label: string; test: (text: string) => boolean }[] = [
@@ -31,7 +44,7 @@ const rules: { label: string; test: (text: string) => boolean }[] = [
   { label: "an e-ticket number", test: (t) => near("e-?ticket|ticket (?:no|number|#)").test(t) },
   {
     label: "a loyalty number",
-    test: (t) => near("frequent[ -]flyer|loyalty|rewards?|membership|member (?:no|number|#|id)|miles").test(t),
+    test: (t) => near("frequent[ -]flyer|loyalty|rewards? (?:no|number|#|id)|member(?:ship)? (?:no|number|#|id)|miles (?:no|number|#|id)").test(t),
   },
 ];
 

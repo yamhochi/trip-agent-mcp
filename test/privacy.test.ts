@@ -57,6 +57,18 @@ describe("privacy guard", () => {
     expect(result.isError).toBeFalsy();
   });
 
+  it("finds a card number after other digits, and does not mistake a time range for a passport number", async () => {
+    expect((await exportTrip(withNote("Room 12 4111 1111 1111 1111"))).result.isError).toBe(true);
+    expect((await exportTrip(withNote("Passport control opens 0800-1700, 5 miles from the hotel"))).result.isError).toBeFalsy();
+  });
+
+  it("rejects private data placed in the source, which becomes the link", async () => {
+    const trip = { ...oneFlightTrip, bookings: [{ ...oneFlightTrip.bookings[0], source: { messageId: "4111111111111111", senderDomain: "sample-air.test", receivedDate: "2026-10-01" } }] };
+    const { result, ics } = await exportTrip(trip);
+    expect(result.isError).toBe(true);
+    expect(ics).toBeUndefined();
+  });
+
   it("rejects a note over the length cap", async () => {
     const { result, ics } = await exportTrip(withNote("x".repeat(201)));
     expect(result.isError).toBe(true);
@@ -77,6 +89,13 @@ describe("masked booking codes", () => {
     expect(ics).toContain("code ending 23");
     expect(ics).not.toContain("ABC123");
     expect(ics).not.toContain("C123");
+  });
+
+  it("hides a code too short to mask", async () => {
+    const trip = { ...oneFlightTrip, bookings: [{ ...oneFlightTrip.bookings[0], reference: "Q7" }] };
+    const { ics } = await exportTrip(trip);
+    expect(ics).toContain("code ending hidden");
+    expect(ics).not.toContain("Q7");
   });
 });
 

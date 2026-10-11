@@ -112,9 +112,9 @@ const tripShape = z.object({
   bookings: z.array(booking).min(1),
 });
 
-// The booking reference and the source are identifiers, not free text, so they are not scanned.
+// The booking reference is an identifier that the server masks, so it is not scanned; the source is scanned because it ends up in the link.
 export const tripSchema = tripShape.superRefine((trip, ctx) => {
-  for (const { path, message } of scanFreeText(trip, [], new Set(["reference", "source"]))) {
+  for (const { path, message } of scanFreeText(trip, [], new Set(["reference"]))) {
     ctx.addIssue({ code: "custom", path, message });
   }
 });
