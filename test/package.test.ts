@@ -149,9 +149,17 @@ describe("the release workflow", () => {
     expect(text).toMatch(/needs:\s*\n?\s*-?\s*verify|needs: verify/);
     expect(publish).toMatch(/startsWith\(github\.ref, 'refs\/tags\/v'\)/);
     expect(publish).toMatch(/vars\.PUBLISH_TO_NPM == 'true'/);
-    expect(text).toMatch(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
     expect(text.match(/npm publish(?! --dry-run)/g) ?? []).toHaveLength(1);
     expect(text).toMatch(/\*-\*\) tag=next/);
+  });
+
+  it("publishes with npm's trusted publishing, so no token is stored: GitHub proves its identity and npm is told to trust it", () => {
+    const publish = workflow().slice(workflow().indexOf("\n  publish:"));
+    expect(publish).toMatch(/id-token: write/);
+    expect(publish).toMatch(/npm install -g npm@latest/);
+    expect(publish.indexOf("npm install -g npm@latest")).toBeLessThan(publish.indexOf("npm publish"));
+    expect(workflow()).not.toMatch(/NPM_TOKEN/);
+    expect(workflow()).not.toMatch(/NODE_AUTH_TOKEN/);
   });
 
   it("never prints or commits a token", () => {
