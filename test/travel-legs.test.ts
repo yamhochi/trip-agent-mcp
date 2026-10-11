@@ -42,6 +42,7 @@ const travel = (mode: Mode, changes: Record<string, unknown> = {}, booking: Reco
       kind: "travel",
       status: "confirmed",
       mode,
+      ...(mode === "flight" ? { international: true } : {}),
       identifier: "N700",
       from: endpoint("Osaka", "2026-12-03T09:00", "Asia/Tokyo"),
       to: endpoint("Tokyo", "2026-12-03T11:30", "Asia/Tokyo"),

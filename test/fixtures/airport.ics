@@ -1,0 +1,94 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//trip-agent-mcp//EN
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Sample Japan Trip
+BEGIN:VTIMEZONE
+TZID:Asia/Tokyo
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZOFFSETFROM:+0900
+TZOFFSETTO:+0900
+TZNAME:GMT+9
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VTIMEZONE
+TZID:Europe/London
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZOFFSETFROM:+0000
+TZOFFSETTO:+0000
+TZNAME:GMT
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:34ba5def0fa5f4ccf098ca94db5ec45b@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Europe/London:20261201T113000
+DTEND;TZID=Asia/Tokyo:20261202T073500
+SUMMARY:Flight JL044: London Heathrow (LHR) to Tokyo Haneda (HND)
+LOCATION:London Heathrow (LHR)
+DESCRIPTION:Sample Air\; Test booking\, code ending 23
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:5d80c3396a92b281ba8d789c67a196c8@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Europe/London:20261201T083000
+DTEND;TZID=Europe/London:20261201T113000
+SUMMARY:Airport check-in: Flight JL044
+LOCATION:London Heathrow (LHR)
+DESCRIPTION:Approximate: check-in is assumed to open 3 hours before an international departure.\nSample Air\; Test booking\, code ending 23
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:3ab0e4b5d5c1e158dddf838eee4c5e0c@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;VALUE=DATE:20261202
+DTEND;VALUE=DATE:20261205
+SUMMARY:Stay: Sample Hotel Tokyo
+LOCATION:Tokyo
+DESCRIPTION:Sample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:172e3547ef3c471ca8acb209c584270d@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261205T100000
+DTEND;TZID=Asia/Tokyo:20261205T113000
+SUMMARY:Flight JL043: Tokyo Haneda (HND) to Osaka Kansai (KIX)
+LOCATION:Tokyo Haneda (HND)
+DESCRIPTION:Sample Air booking\, code ending 56
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:0a233feaff34411d46bda18ca1ea0e20@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261205T080000
+DTEND;TZID=Asia/Tokyo:20261205T100000
+SUMMARY:Airport check-in: Flight JL043
+LOCATION:Tokyo Haneda (HND)
+DESCRIPTION:Approximate: check-in is assumed to open 2 hours before a domestic departure.\nSample Air booking\, code ending 56
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:3b12c8e8afdfced3b9526067e5f90f8e@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261202T073500
+DTEND;TZID=Asia/Tokyo:20261202T082000
+SUMMARY:Hotel shuttle from the airport: Sample Hotel Tokyo
+LOCATION:Tokyo Haneda (HND)
+DESCRIPTION:Approximate: the hotel's free shuttle is assumed to take 45 minutes and to meet Flight JL044. Check the shuttle times with the hotel.\nSample Stays booking\, code ending 89
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+UID:32e09574945fa578bdee0762819a747c@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261205T071500
+DTEND;TZID=Asia/Tokyo:20261205T080000
+SUMMARY:Hotel shuttle to the airport: Sample Hotel Tokyo
+LOCATION:Tokyo Haneda (HND)
+DESCRIPTION:Approximate: the hotel's free shuttle is assumed to take 45 minutes and to arrive before check-in opens for Flight JL043. Check the shuttle times with the hotel.\nSample Stays booking\, code ending 89
+STATUS:TENTATIVE
+END:VEVENT
+END:VCALENDAR

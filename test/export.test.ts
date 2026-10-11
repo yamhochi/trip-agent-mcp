@@ -6,7 +6,7 @@ import { makeHome, startServer, textOf } from "./harness.js";
 
 const knownGood = (name: string) => readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
 // DTSTAMP is the export moment, so it is the one line that cannot be saved.
-const withoutStamp = (ics: string) => ics.replace(/^DTSTAMP:.*$/m, "DTSTAMP:20000101T000000Z");
+const withoutStamp = (ics: string) => ics.replace(/^DTSTAMP:.*$/gm, "DTSTAMP:20000101T000000Z");
 
 const open: { close: () => Promise<void> }[] = [];
 afterEach(async () => {

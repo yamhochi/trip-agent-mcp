@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Activity, Leg, Stay, Travel, Trip } from "./schema.js";
-import { wallClockAsUtc, zoneAt } from "./time.js";
+import { sameArea } from "./places.js";
+import { instantOf, shiftLocal, wallClockAsUtc, zoneAt } from "./time.js";
 
 const CRLF = "\r\n";
 
@@ -111,7 +112,7 @@ function emailLink(source: NonNullable<Booking["source"]>): string {
 
 const eventStatus = { confirmed: "CONFIRMED", planned: "TENTATIVE", cancelled: "CANCELLED", idea: "CONFIRMED" } as const;
 
-function event(booking: Booking, status: Leg["status"], id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string): string[] {
+function event(booking: Booking, status: Leg["status"], id: string, stamp: string, dtstart: string, dtend: string, summary: string, location: string, description = describeBooking(booking)): string[] {
   return [
     "BEGIN:VEVENT",
     `UID:${id}`,
@@ -120,7 +121,7 @@ function event(booking: Booking, status: Leg["status"], id: string, stamp: strin
     dtend,
     `SUMMARY:${escapeText(summary)}`,
     `LOCATION:${escapeText(location)}`,
-    `DESCRIPTION:${escapeText(describeBooking(booking))}`,
+    `DESCRIPTION:${escapeText(description)}`,
     ...(booking.source ? [`URL:${booking.source.link ?? emailLink(booking.source)}`] : []),
     `STATUS:${eventStatus[status]}`,
     "END:VEVENT",
@@ -143,19 +144,52 @@ function legEvent(booking: Booking, leg: Leg, stamp: string): string[] {
 
 const modeLabel = { flight: "Flight", train: "Train", ferry: "Ferry", bus: "Bus", car: "Car", other: "Travel" } as const;
 
+/** A journey as it is named in titles: "Flight JL044", "Train N700", "Ferry". */
+const travelName = (leg: Travel) => `${modeLabel[leg.mode]}${leg.identifier ? ` ${leg.identifier}` : ""}`;
+
+/** The id of the event for a leg, from facts that do not change when it is amended. */
+function idOfLeg(booking: Booking, leg: Leg): string {
+  switch (leg.kind) {
+    case "travel": {
+      // A journey is named by its number when it has one, and by where it goes when it has not.
+      const fact = leg.identifier ? squash(leg.identifier) : `${tidy(leg.from.location)}>${tidy(leg.to.location)}`;
+      return legId(booking, leg.mode, fact, leg.from.localTime.slice(0, 10));
+    }
+    case "stay":
+      return legId(booking, "stay", tidy(leg.property), leg.checkIn);
+    case "activity":
+      return legId(booking, "activity", tidy(leg.name), leg.start.slice(0, 10));
+  }
+}
+
 function travelEvent(booking: Booking, leg: Travel, stamp: string): string[] {
   const { from, to } = leg;
-  // A journey is named by its number when it has one, and by where it goes when it has not.
-  const fact = leg.identifier ? squash(leg.identifier) : `${tidy(from.location)}>${tidy(to.location)}`;
   return event(
     booking,
     leg.status,
-    legId(booking, leg.mode, fact, from.localTime.slice(0, 10)),
+    idOfLeg(booking, leg),
     stamp,
     zoned("DTSTART", from.timeZone, from.localTime),
     zoned("DTEND", to.timeZone, to.localTime),
-    `${modeLabel[leg.mode]}${leg.identifier ? ` ${leg.identifier}` : ""}: ${from.location} to ${to.location}`,
+    `${travelName(leg)}: ${from.location} to ${to.location}`,
     from.location,
+  );
+}
+
+/** Airport check-in is assumed to open 3 hours before an international departure and 2 before a domestic one. */
+function checkInBlock(booking: Booking, leg: Travel, stamp: string): string[] {
+  const hours = checkInHours(leg);
+  const { from } = leg;
+  return event(
+    booking,
+    leg.status === "cancelled" ? "cancelled" : "planned",
+    uid(idOfLeg(booking, leg), "check-in"),
+    stamp,
+    zoned("DTSTART", from.timeZone, shiftLocal(from.localTime, -hours * 60)),
+    zoned("DTEND", from.timeZone, from.localTime),
+    `Airport check-in: ${travelName(leg)}`,
+    from.location,
+    `Approximate: check-in is assumed to open ${hours} hours before ${leg.international ? "an international" : "a domestic"} departure.\n${describeBooking(booking)}`,
   );
 }
 
@@ -163,7 +197,7 @@ function stayEvent(booking: Booking, leg: Stay, stamp: string): string[] {
   return event(
     booking,
     leg.status,
-    legId(booking, "stay", tidy(leg.property), leg.checkIn),
+    idOfLeg(booking, leg),
     stamp,
     allDay("DTSTART", leg.checkIn),
     allDay("DTEND", leg.checkOut),
@@ -176,13 +210,86 @@ function activityEvent(booking: Booking, leg: Activity, stamp: string): string[]
   return event(
     booking,
     leg.status,
-    legId(booking, "activity", tidy(leg.name), leg.start.slice(0, 10)),
+    idOfLeg(booking, leg),
     stamp,
     zoned("DTSTART", leg.timeZone, leg.start),
     zoned("DTEND", leg.timeZone, leg.end),
     `Activity: ${leg.name}`,
     leg.location,
   );
+}
+
+const SHUTTLE_MINUTES = 45;
+const checkInHours = (leg: Travel) => (leg.international ? 3 : 2);
+
+interface Placed<L extends Leg> {
+  booking: Booking;
+  leg: L;
+}
+
+/**
+ * Hotel shuttles, worked out from the flights: when a stay's booking says free airport transit is included,
+ * a departing shuttle ends when airport check-in opens before a flight leaving on the check-out day, and an
+ * arriving shuttle starts at landing for a flight arriving on the check-in day. No matching flight, no shuttle.
+ */
+function shuttleEvents(trip: Trip, stamp: string): string[][] {
+  const placed = trip.bookings.flatMap((booking) => booking.legs.map((leg) => ({ booking, leg })));
+  const flights = placed.filter((p): p is Placed<Travel> => p.leg.kind === "travel" && p.leg.mode === "flight" && p.leg.status !== "idea");
+  const stays = placed.filter((p): p is Placed<Stay> => p.leg.kind === "stay" && p.leg.status !== "idea" && p.leg.airportTransit === true);
+  const events: string[][] = [];
+  const earliest = (found: Placed<Travel>[], when: (leg: Travel) => { localTime: string; timeZone: string }) =>
+    found.sort((a, b) => instantOf(when(a.leg).localTime, when(a.leg).timeZone) - instantOf(when(b.leg).localTime, when(b.leg).timeZone))[0];
+
+  for (const { booking, leg: stay } of stays) {
+    const stayId = idOfLeg(booking, stay);
+    const status = (flight: Travel) => (stay.status === "cancelled" || flight.status === "cancelled" ? "cancelled" : "planned");
+    const note = (what: string, flight: Travel) =>
+      `Approximate: the hotel's free shuttle is assumed to take ${SHUTTLE_MINUTES} minutes and to ${what} ${travelName(flight)}. Check the shuttle times with the hotel.\n${describeBooking(booking)}`;
+
+    const arriving = earliest(
+      flights.filter((f) => f.leg.to.localTime.slice(0, 10) === stay.checkIn && sameArea(f.leg.to.location, stay.location)),
+      (leg) => leg.to,
+    );
+    if (arriving) {
+      const { to } = arriving.leg;
+      events.push(
+        event(
+          booking,
+          status(arriving.leg),
+          uid(stayId, "shuttle", "from-airport"),
+          stamp,
+          zoned("DTSTART", to.timeZone, to.localTime),
+          zoned("DTEND", to.timeZone, shiftLocal(to.localTime, SHUTTLE_MINUTES)),
+          `Hotel shuttle from the airport: ${stay.property}`,
+          to.location,
+          note("meet", arriving.leg),
+        ),
+      );
+    }
+
+    const departing = earliest(
+      flights.filter((f) => f.leg.from.localTime.slice(0, 10) === stay.checkOut && sameArea(f.leg.from.location, stay.location)),
+      (leg) => leg.from,
+    );
+    if (departing) {
+      const { from } = departing.leg;
+      const checkInOpens = shiftLocal(from.localTime, -checkInHours(departing.leg) * 60);
+      events.push(
+        event(
+          booking,
+          status(departing.leg),
+          uid(stayId, "shuttle", "to-airport"),
+          stamp,
+          zoned("DTSTART", from.timeZone, shiftLocal(checkInOpens, -SHUTTLE_MINUTES)),
+          zoned("DTEND", from.timeZone, checkInOpens),
+          `Hotel shuttle to the airport: ${stay.property}`,
+          from.location,
+          note("arrive before check-in opens for", departing.leg),
+        ),
+      );
+    }
+  }
+  return events;
 }
 
 /** Every zoned time in the leg, so each zone used gets a VTIMEZONE. */
@@ -212,8 +319,10 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
         if (!zones.has(end.timeZone)) zones.set(end.timeZone, vtimezone(end.timeZone, end.localTime));
       }
       events.push(legEvent(b, leg, stamp));
+      if (leg.kind === "travel" && leg.mode === "flight") events.push(checkInBlock(b, leg, stamp));
     }
   }
+  events.push(...shuttleEvents(trip, stamp));
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",

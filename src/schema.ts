@@ -43,18 +43,27 @@ const mode = z
   .enum(["flight", "train", "ferry", "bus", "car", "other"])
   .describe("How the traveller moves: flight, train, ferry, bus, car, or other. A flight is a travel leg with mode flight.");
 
-const travel = z.object({
-  kind: z.literal("travel"),
-  status,
-  mode,
-  identifier: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("The flight number, the train number, or any number that names this journey. Leave it out when there is none."),
-  from: endpoint.describe("Where and when it leaves, with the place, the local time and the named time zone there."),
-  to: endpoint.describe("Where and when it arrives, with the place, the local time and the named time zone there."),
-});
+const travel = z
+  .object({
+    kind: z.literal("travel"),
+    status,
+    mode,
+    identifier: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("The flight number, the train number, or any number that names this journey. Leave it out when there is none."),
+    international: z
+      .boolean()
+      .optional()
+      .describe("For a flight only: true for an international flight, false for a domestic one. Work it out from the countries at each end, or ask the traveller if unsure."),
+    from: endpoint.describe("Where and when it leaves, with the place, the local time and the named time zone there."),
+    to: endpoint.describe("Where and when it arrives, with the place, the local time and the named time zone there."),
+  })
+  .refine((t) => t.mode !== "flight" || t.international !== undefined, {
+    path: ["international"],
+    message: "is required for a flight: say true for an international flight or false for a domestic one, or ask the traveller if unsure",
+  });
 
 export const date = z
   .string()
@@ -69,6 +78,10 @@ const stay = z
     location: z.string().min(1),
     checkIn: date,
     checkOut: date,
+    airportTransit: z
+      .boolean()
+      .optional()
+      .describe("Set true only when the booking says free airport transit (a shuttle to or from the airport) is included. Leave it out otherwise, including when a shuttle is merely available or costs extra."),
   })
   .refine((s) => s.checkOut > s.checkIn, { path: ["checkOut"], message: "must be after checkIn" });
 

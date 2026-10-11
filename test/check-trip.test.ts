@@ -22,6 +22,7 @@ const flightBooking = (flightNumber: string, from: [string, string, string], to:
     {
       kind: "travel",
       mode: "flight",
+      international: true,
       status,
       identifier: flightNumber,
       from: { location: from[0], localTime: from[1], timeZone: from[2] },
