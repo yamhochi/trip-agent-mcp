@@ -236,8 +236,8 @@ describe("a booking code is only ever shown masked", () => {
     [
       "a flight's location",
       (b: Record<string, unknown>) => {
-        const flight = (b.legs as { departure: object }[])[0];
-        return { ...b, legs: [{ ...flight, departure: { ...flight.departure, location: "Gate XK29PQ" } }] };
+        const flight = (b.legs as { from: object }[])[0];
+        return { ...b, legs: [{ ...flight, from: { ...flight.from, location: "Gate XK29PQ" } }] };
       },
     ],
   ])("rejects the full code appearing in %s, saying to remove it", async (_where, change) => {

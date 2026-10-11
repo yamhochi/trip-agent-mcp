@@ -13,8 +13,12 @@ A single reservation with a vendor and, usually, a confirmation reference. A thi
 _Avoid_: Reservation, order
 
 **Leg**:
-One segment of a trip: one flight number, one stay, or one activity. Movement legs and lodging legs are both legs.
-_Avoid_: Segment, item, flight (a flight is one kind of leg)
+One segment of a trip: a journey from one place to another by some mode, one stay, or one activity. Movement legs and lodging legs are both legs. A flight is a journey whose mode is flight.
+_Avoid_: Segment, item
+
+**Mode**:
+How a journey moves the traveller: flight, train, ferry, bus, car, or other. A journey may carry a number that names it (a flight number, a train number) or none.
+_Avoid_: Transport type, vehicle
 
 **Traveller**:
 A person going on a trip, listed by name on it.

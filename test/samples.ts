@@ -9,11 +9,12 @@ export const oneFlightTrip = {
       reference: "ABC123",
       legs: [
         {
-          kind: "flight",
+          kind: "travel",
+          mode: "flight",
           status: "confirmed",
-          flightNumber: "JL044",
-          departure: { location: "London Heathrow (LHR)", localTime: "2026-12-01T11:30", timeZone: "Europe/London" },
-          arrival: { location: "Tokyo Haneda (HND)", localTime: "2026-12-02T07:35", timeZone: "Asia/Tokyo" },
+          identifier: "JL044",
+          from: { location: "London Heathrow (LHR)", localTime: "2026-12-01T11:30", timeZone: "Europe/London" },
+          to: { location: "Tokyo Haneda (HND)", localTime: "2026-12-02T07:35", timeZone: "Asia/Tokyo" },
         },
       ],
     },

@@ -13,7 +13,7 @@ export function createServer(): McpServer {
     "export_trip",
     {
       description:
-        "Export a trip as a calendar (.ics) file on the traveller's computer. Takes the assembled trip (name, start date, home city, bookings with their legs); the server chooses the file name and folder. Show the traveller the trip and get their confirmation before calling this. Returns the path written.",
+        "Export a trip as a calendar (.ics) file on the traveller's computer. Takes the assembled trip (name, start date, home city, bookings with their legs: each leg is travel by flight, train, ferry, bus, car or other, a stay, or an activity); the server chooses the file name and folder. Show the traveller the trip and get their confirmation before calling this. Returns the path written.",
       inputSchema: { trip: tripSchema },
     },
     async ({ trip }) => {
@@ -48,7 +48,7 @@ export function createServer(): McpServer {
     "check_trip",
     {
       description:
-        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a flight that does not leave from where the last one arrived) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights. Keeps nothing. Returns each gap in plain English: relay them to the traveller and ask how they want to fix them.",
+        "Check an assembled trip for what is missing, by plain rules: an unbooked night, a broken location chain (a journey by any mode of travel, or a stay, that does not start where the previous one ended) and a missing return to the home city. Takes the same trip as export_trip. Ideas and cancelled legs never count; a planned stay with no booking covers its nights. Keeps nothing. Returns each gap in plain English: relay them to the traveller and ask how they want to fix them.",
       inputSchema: { trip: tripSchema },
     },
     async ({ trip }) => {

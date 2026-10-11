@@ -96,13 +96,13 @@ describe("event identity", () => {
     const retimed = idOf(
       await e.export(
         withFlight({
-          departure: { ...flight.departure, localTime: "2026-12-01T14:10" },
-          arrival: { ...flight.arrival, localTime: "2026-12-02T10:15" },
+          from: { ...flight.from, localTime: "2026-12-01T14:10" },
+          to: { ...flight.to, localTime: "2026-12-02T10:15" },
         }),
       ),
       "Flight JL044",
     );
-    const renumbered = idOf(await e.export(withFlight({ flightNumber: "JL045" })), "Flight JL045");
+    const renumbered = idOf(await e.export(withFlight({ identifier: "JL045" })), "Flight JL045");
     expect(retimed).toBe(original);
     expect(renumbered).not.toBe(original);
   });
@@ -191,7 +191,7 @@ describe("event identity", () => {
     const trip = tripWith({
       vendor: "Sample Travel",
       reference: "ZZZ111",
-      legs: [{ ...oneFlightTrip.bookings[0].legs[0], flightNumber: "SAME" }, { ...hotelBooking.legs[0], property: "SAME" }],
+      legs: [{ ...oneFlightTrip.bookings[0].legs[0], identifier: "SAME" }, { ...hotelBooking.legs[0], property: "SAME" }],
     });
     const ics = await e.export(trip);
     expect(idOf(ics, "Flight SAME")).not.toBe(idOf(ics, "Stay: SAME"));
@@ -206,7 +206,7 @@ describe("event identity", () => {
         vendor: "Sample Air",
         reference: "ABC123",
         legs: [
-          { ...flight, departure: { ...flight.departure, location: nasty } },
+          { ...flight, from: { ...flight.from, location: nasty } },
           { ...dinnerBooking.legs[0], name: nasty },
         ],
       }),
@@ -223,7 +223,7 @@ describe("event identity", () => {
     const stay = hotelBooking.legs[0];
     const trip = (reference: string, flightNumber: string, property: string) =>
       tripWith(
-        { ...oneFlightTrip.bookings[0], reference, legs: [{ ...flight, flightNumber }] },
+        { ...oneFlightTrip.bookings[0], reference, legs: [{ ...flight, identifier: flightNumber }] },
         { ...hotelBooking, reference: "HTL789", legs: [{ ...stay, property }] },
       );
     const original = idsBySummary(await e.export(trip("ABC123", "JL044", "Sample Hotel Tokyo")));
@@ -235,7 +235,7 @@ describe("event identity", () => {
   it("still gives a different id to a different flight number or property after tidying the wording", async () => {
     const e = await exporter();
     const flight = oneFlightTrip.bookings[0].legs[0];
-    const trip = (flightNumber: string) => tripWith({ ...oneFlightTrip.bookings[0], legs: [{ ...flight, flightNumber }] });
+    const trip = (flightNumber: string) => tripWith({ ...oneFlightTrip.bookings[0], legs: [{ ...flight, identifier: flightNumber }] });
     const original = [...idsBySummary(await e.export(trip("JL044"))).values()];
     const other = [...idsBySummary(await e.export(trip("JL 045"))).values()];
     expect(other).not.toEqual(original);
