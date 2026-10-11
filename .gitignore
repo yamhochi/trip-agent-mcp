@@ -8,3 +8,5 @@ dist/
 .claude/
 build/
 *.mcpb
+# A folder named after an unfilled setting placeholder must never be created, let alone committed
+${*}/
