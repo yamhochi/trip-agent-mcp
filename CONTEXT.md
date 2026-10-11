@@ -56,6 +56,10 @@ _Avoid_: Buffer
 A tentative 45-minute calendar event made only when a stay's booking says free airport transit is included and a flight matches: after landing on the check-in day, or ending when the check-in block starts on the check-out day. Approximate.
 _Avoid_: Transfer, taxi
 
+**Included breakfast**:
+An approximate 8 to 10am calendar event for each morning after a night of a stay whose booking says breakfast is included, in the property's time zone. Breakfast that is merely available makes none.
+_Avoid_: Meal
+
 **Mailbox**:
 The traveller's email account, read by their own Claude through the traveller's own email connector. This server never reads it.
 _Avoid_: Email source, inbox

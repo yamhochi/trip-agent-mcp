@@ -219,6 +219,35 @@ function activityEvent(booking: Booking, leg: Activity, stamp: string): string[]
   );
 }
 
+/** The mornings of a stay: the day after each night, so a stay checking in on the 2nd and out on the 5th has the 3rd, 4th and 5th. */
+function breakfastDates(stay: Stay): string[] {
+  const dates: string[] = [];
+  for (let day = stay.checkIn; day < stay.checkOut; ) {
+    day = shiftLocal(`${day}T00:00`, 24 * 60).slice(0, 10);
+    dates.push(day);
+  }
+  return dates;
+}
+
+/** An approximate breakfast for each morning of a stay whose booking says breakfast is included. */
+function breakfastEvents(booking: Booking, stay: Stay, stamp: string): string[][] {
+  if (!stay.breakfastIncluded || !stay.timeZone) return [];
+  const timeZone = stay.timeZone;
+  return breakfastDates(stay).map((date) =>
+    event(
+      booking,
+      stay.status,
+      uid(idOfLeg(booking, stay), "breakfast", date),
+      stamp,
+      zoned("DTSTART", timeZone, `${date}T08:00`),
+      zoned("DTEND", timeZone, `${date}T10:00`),
+      `Included breakfast: ${stay.property}`,
+      stay.location,
+      `Approximate: breakfast is assumed to be served between 8 and 10 in the morning. Check the hours with the property.\n${describeBooking(booking)}`,
+    ),
+  );
+}
+
 const SHUTTLE_MINUTES = 45;
 const checkInHours = (leg: Travel) => (leg.international ? 3 : 2);
 
@@ -298,7 +327,7 @@ function zonedTimes(leg: Leg): { timeZone: string; localTime: string }[] {
     case "travel":
       return [leg.from, leg.to];
     case "stay":
-      return [];
+      return leg.breakfastIncluded && leg.timeZone ? [{ timeZone: leg.timeZone, localTime: `${leg.checkIn}T08:00` }] : [];
     case "activity":
       return [
         { timeZone: leg.timeZone, localTime: leg.start },
@@ -319,6 +348,7 @@ export function buildCalendar(trip: Trip, now: Date = new Date()): string {
         if (!zones.has(end.timeZone)) zones.set(end.timeZone, vtimezone(end.timeZone, end.localTime));
       }
       events.push(legEvent(b, leg, stamp));
+      if (leg.kind === "stay") events.push(...breakfastEvents(b, leg, stamp));
       if (leg.kind === "travel" && leg.mode === "flight") events.push(checkInBlock(b, leg, stamp));
     }
   }

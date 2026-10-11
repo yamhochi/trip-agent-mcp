@@ -1,0 +1,55 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//trip-agent-mcp//EN
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Sample Japan Trip
+BEGIN:VTIMEZONE
+TZID:Asia/Tokyo
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZOFFSETFROM:+0900
+TZOFFSETTO:+0900
+TZNAME:GMT+9
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:3ab0e4b5d5c1e158dddf838eee4c5e0c@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;VALUE=DATE:20261202
+DTEND;VALUE=DATE:20261205
+SUMMARY:Stay: Sample Hotel Tokyo
+LOCATION:Tokyo
+DESCRIPTION:Sample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:d54f02e234ba0fa8b615d82b86d00759@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261203T080000
+DTEND;TZID=Asia/Tokyo:20261203T100000
+SUMMARY:Included breakfast: Sample Hotel Tokyo
+LOCATION:Tokyo
+DESCRIPTION:Approximate: breakfast is assumed to be served between 8 and 10 in the morning. Check the hours with the property.\nSample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:86d40b02b552a30686d55e031a9d7c16@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261204T080000
+DTEND;TZID=Asia/Tokyo:20261204T100000
+SUMMARY:Included breakfast: Sample Hotel Tokyo
+LOCATION:Tokyo
+DESCRIPTION:Approximate: breakfast is assumed to be served between 8 and 10 in the morning. Check the hours with the property.\nSample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:2727a2f92de4c4b4ff8f8aed5f804383@trip-agent-mcp
+DTSTAMP:20000101T000000Z
+DTSTART;TZID=Asia/Tokyo:20261205T080000
+DTEND;TZID=Asia/Tokyo:20261205T100000
+SUMMARY:Included breakfast: Sample Hotel Tokyo
+LOCATION:Tokyo
+DESCRIPTION:Approximate: breakfast is assumed to be served between 8 and 10 in the morning. Check the hours with the property.\nSample Stays booking\, code ending 89
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR

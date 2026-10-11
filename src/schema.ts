@@ -82,8 +82,19 @@ const stay = z
       .boolean()
       .optional()
       .describe("Set true only when the booking says free airport transit (a shuttle to or from the airport) is included. Leave it out otherwise, including when a shuttle is merely available or costs extra."),
+    breakfastIncluded: z
+      .boolean()
+      .optional()
+      .describe("Set true only when the booking says breakfast is included. Leave it out otherwise, including when breakfast is merely available or costs extra."),
+    timeZone: timeZone
+      .optional()
+      .describe("The property's IANA time zone, such as Asia/Tokyo. Required when breakfastIncluded is true; work it out from the location, or ask the traveller."),
   })
-  .refine((s) => s.checkOut > s.checkIn, { path: ["checkOut"], message: "must be after checkIn" });
+  .refine((s) => s.checkOut > s.checkIn, { path: ["checkOut"], message: "must be after checkIn" })
+  .refine((s) => !s.breakfastIncluded || s.timeZone !== undefined, {
+    path: ["timeZone"],
+    message: "is required when breakfast is included: work out the property's IANA time zone from the location, or ask the traveller, then supply it",
+  });
 
 const activityZone = z.string({
   error: (issue) =>
