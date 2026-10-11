@@ -1,7 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { tidy } from "./places.js";
 
 /**
  * The export folder: $TRIP_AGENT_DIR, or Documents/trip-agent in the home folder. A host that fills the variable in
@@ -13,17 +14,26 @@ export function exportFolder(): string {
   return chosen && !/\$\{[^}]*\}/.test(chosen) ? chosen : join(homedir(), "Documents", "trip-agent");
 }
 
-/** Built by the server alone from the trip name and start date; the model never supplies a path. */
+/**
+ * Built by the server alone from the trip name and start date; the model never supplies a path.
+ *
+ * The readable part is the name in lower-case ASCII, with accents folded away ("Café" reads "cafe"). A name with
+ * letters or digits that have no plain form (Japanese, Arabic, Cyrillic) would lose them and could end up the same
+ * as another trip's, so a short hash of the whole name is added then, and only then: names that are already plain
+ * keep exactly the file name they have always had.
+ */
 export function tripFilename(name: string, startDate: string): string {
-  const slug = name
-    .normalize("NFKD")
+  const unaccented = name.normalize("NFKD").replace(/\p{M}/gu, "");
+  const slug = unaccented
     .replace(/[^\x00-\x7f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
     .replace(/-+$/, "");
-  return `${slug || "trip"}-${startDate}.ics`;
+  const losesLetters = /[^\x00-\x7f]/.test(unaccented.replace(/[^\p{L}\p{N}]/gu, ""));
+  const hash = losesLetters ? `-${createHash("sha256").update(tidy(name)).digest("hex").slice(0, 8)}` : "";
+  return `${slug || "trip"}${hash}-${startDate}.ics`;
 }
 
 /** Where a trip's calendar file lives, whether or not it has been written yet. */
