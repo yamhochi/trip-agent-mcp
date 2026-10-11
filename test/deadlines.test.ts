@@ -129,6 +129,16 @@ describe("cancellation and payment deadlines", () => {
     expect(cancelled.every((d) => d.status === "CANCELLED")).toBe(true);
   });
 
+  it("makes tentative deadlines for a booking that is only planned", async () => {
+    const { ics } = await (await exporter()).export(trip(hotel({}, { status: "planned" })));
+    expect(deadlines(ics!).map((d) => d.status)).toEqual(["TENTATIVE", "TENTATIVE"]);
+  });
+
+  it("ends a deadline on the first day of the next month when it falls on the last day of a month", async () => {
+    const { ics } = await (await exporter()).export(trip(withDeadlines({ paymentDueBy: "2026-11-30" })));
+    expect(deadlines(ics!).map((d) => [d.start, d.end])).toEqual([[";VALUE=DATE:20261130", ";VALUE=DATE:20261201"]]);
+  });
+
   it("makes no deadline events for a booking that is only an idea", async () => {
     const { ics } = await (await exporter()).export(trip(oneFlightTrip.bookings[0], hotel({}, { status: "idea" })));
     expect(deadlines(ics!)).toEqual([]);

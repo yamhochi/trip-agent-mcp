@@ -263,7 +263,7 @@ function bookingLabel(booking: Booking): string {
 function deadlineEvents(booking: Booking, stamp: string): string[][] {
   const live = booking.legs.filter((leg) => leg.status !== "idea");
   if (live.length === 0 || !booking.deadlines) return [];
-  const status = live.every((leg) => leg.status === "cancelled") ? "cancelled" : "confirmed";
+  const status = live.every((leg) => leg.status === "cancelled") ? "cancelled" : live.every((leg) => leg.status === "planned") ? "planned" : "confirmed";
   const owner = booking.reference ? squash(booking.reference) || tidy(booking.reference) : `${tidy(booking.vendor)}:${idOfLeg(booking, booking.legs[0])}`;
   const kinds = [
     { kind: "cancellation", date: booking.deadlines.cancellationBy, title: "Free cancellation ends", what: "free cancellation ends on this date" },
