@@ -1,6 +1,6 @@
 {
   "name": "trip-agent-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server that checks a trip for gaps and exports it as a calendar file",
   "keywords": [
     "mcp",
